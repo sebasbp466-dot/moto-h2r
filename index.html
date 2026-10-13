@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Moto H2R</title>
+<style>
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:system-ui,sans-serif;color:#fff}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+#spd{position:absolute;top:10px;left:16px;font-size:20px;text-shadow:0 2px 4px #000}
+#spd b{font-size:42px}
+#score{position:absolute;top:10px;right:16px;font-size:34px;font-weight:700;text-shadow:0 2px 4px #000}
+#best{position:absolute;top:52px;right:16px;font-size:14px;opacity:.8}
+#bal{position:absolute;top:14px;left:50%;width:34%;height:10px;transform:translateX(-50%);background:#0006;border-radius:6px;overflow:hidden}
+#bal i{display:block;height:100%;width:0;background:#3ddc5a}
+#combo{position:absolute;top:32px;width:100%;text-align:center;font-size:22px;font-weight:800;color:#ffd400;text-shadow:0 2px 4px #000}
+#msg{position:absolute;top:30%;width:100%;text-align:center;font-size:28px;font-weight:800;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .2s}
+#msg.show{opacity:1}
+#ctl{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding:0 18px calc(14px + env(safe-area-inset-bottom))}
+.grp{display:flex;gap:14px;align-items:flex-end}
+button{border:0;color:#fff;background:#ffffff33;border-radius:50%;width:84px;height:84px;font-size:32px;font-weight:800;backdrop-filter:blur(2px)}
+button.wide{border-radius:42px;width:132px;font-size:17px}
+button#bG{background:#2bd14a88;height:96px}
+button#bW{background:#ffb30088}
+button.on{background:#fff9;transform:scale(.95)}
+#ov{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000a;text-align:center;padding:20px}
+#ov h1{font-size:44px;margin:0 0 6px;letter-spacing:2px}
+#ov p{margin:6px 0;font-size:22px}
+#ov .s{font-size:14px;opacity:.75;max-width:420px}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="spd"><b id="kmh">0</b> km/h</div>
+  <div id="bal"><i></i></div>
+  <div id="score">0</div>
+  <div id="best"></div>
+  <div id="combo"></div>
+  <div id="msg"></div>
+</div>
+<div id="ctl">
+  <div class="grp"><button id="bL">◀</button><button id="bR">▶</button></div>
+  <div class="grp"><button id="bW" class="wide">CABALLITO</button><button id="bG" class="wide">GAS</button></div>
+</div>
+<div id="ov">
+  <h1>NINJA H2R</h1>
+  <p id="ovt">Toca para arrancar</p>
+  <p class="s">◀ ▶ cambias de carril · GAS acelera · CABALLITO levanta la rueda: suéltalo a tiempo o te volteas</p>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
