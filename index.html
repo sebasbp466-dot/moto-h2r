@@ -26,12 +26,13 @@ canvas{display:block}
 #combo{text-align:center;font-size:20px;color:#ffd400;min-height:26px;font-style:italic}
 #sc{position:absolute;top:8px;right:16px;text-align:right}
 #score{font-size:36px;font-style:italic}
-#best,#dist{font-size:13px;opacity:.85}
+#best,#dist,#coins{font-size:14px;opacity:.9}
+#coins{color:#ffd400}
 #msg{position:absolute;top:30%;width:100%;text-align:center;font-size:34px;font-style:italic;color:#fff;opacity:0}
 #msg.show{animation:pop .9s ease-out}
 @keyframes pop{0%{opacity:0;transform:scale(.4)}15%{opacity:1;transform:scale(1.15)}30%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.05)}}
 
-#top{position:fixed;top:78px;right:14px;display:flex;gap:10px}
+#top{position:fixed;top:92px;right:14px;display:flex;gap:10px}
 .ib{border:0;color:#fff;background:#00000066;border-radius:50%;width:46px;height:46px;font-size:20px}
 
 #ctl{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:flex-end;padding:0 16px calc(12px + env(safe-area-inset-bottom));pointer-events:none}
@@ -51,13 +52,35 @@ canvas{display:block}
 .t3{display:block;font-size:min(17vh,12.5vw);line-height:.95;font-style:italic;color:#fff;text-shadow:0 0 18px #7df9ff,0 0 4px #7df9ff}
 .sub{margin-top:8px;font-size:min(4.2vh,3.4vw);opacity:.85;font-family:system-ui,sans-serif;font-weight:700;letter-spacing:.12em}
 #mBest{margin-top:6px;font-size:min(4vh,3.3vw);color:#ffd400}
-.col{display:flex;flex-direction:column;gap:10px;min-width:min(46vw,300px)}
-.mb{pointer-events:auto;border:0;border-radius:14px;color:#fff;background:#ffffff26;padding:12px 10px;font-size:min(4.6vh,3.6vw);font-family:inherit;font-weight:800;letter-spacing:.04em}
-.mb.big{background:linear-gradient(90deg,#ff9d00,#ff3d71);font-size:min(7vh,5vw);padding:16px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.col{display:flex;flex-direction:column;gap:8px;min-width:min(46vw,300px)}
+.mb{pointer-events:auto;border:0;border-radius:14px;color:#fff;background:#ffffff26;padding:10px 8px;font-size:min(4.2vh,3.4vw);font-family:inherit;font-weight:800;letter-spacing:.03em}
+.mb.big{background:linear-gradient(90deg,#ff9d00,#ff3d71);font-size:min(7vh,5vw);padding:14px}
+.mb.mid{background:linear-gradient(90deg,#3a7bff,#7df9ff);color:#06101c}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #ovt{font-size:min(11vh,8vw);font-style:italic;color:#ff5252;text-shadow:0 0 18px #ff0000aa}
 #ovs{font-size:min(6vh,5vw);color:#ffd400}
-.help{font-family:system-ui,sans-serif;font-weight:600;font-size:min(3.2vh,2.6vw);opacity:.75;text-align:center;max-width:300px}
+#ovc{font-size:min(5vh,4vw);color:#ffd400}
+.help{font-family:system-ui,sans-serif;font-weight:600;font-size:min(3vh,2.5vw);opacity:.75;text-align:center;max-width:300px}
+
+#garage{position:fixed;top:0;right:0;bottom:0;width:min(60vw,560px);display:none;flex-direction:column;gap:6px;padding:8px 12px 8px 46px;background:linear-gradient(90deg,#0000,#12081fee 16%)}
+#gTop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#gMoney{font-size:min(5vh,4vw);color:#ffd400}
+#gTabs{display:flex;gap:5px;flex-wrap:wrap}
+.gtab{pointer-events:auto;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-family:inherit;font-weight:800;font-size:min(3.4vh,2.8vw);padding:7px 9px}
+.gtab.sel{background:linear-gradient(90deg,#ff9d00,#ff3d71)}
+#gBody{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:7px;padding-right:4px}
+#gBody,#gBody *{touch-action:pan-y}
+.gcard,.gup{pointer-events:auto;text-align:left;border:2px solid transparent;border-radius:12px;background:#ffffff1c;color:#fff;font-family:inherit;padding:8px 10px;display:flex;flex-direction:column;gap:3px}
+.gcard.sel{border-color:#7df9ff;background:#7df9ff22}
+.gname{font-size:min(4vh,3.3vw)}
+.gdesc{font-family:system-ui,sans-serif;font-weight:600;font-size:min(3vh,2.5vw);opacity:.85}
+.gstat{font-family:monospace;font-size:min(2.8vh,2.3vw);color:#ffd9a0}
+.grow{display:flex;flex-direction:column;gap:4px}
+.glab{font-size:min(3.2vh,2.7vw);color:#ffd9a0}
+.gsw{display:flex;gap:6px;flex-wrap:wrap}
+.sw{pointer-events:auto;width:min(8vh,6.5vw);height:min(8vh,6.5vw);border-radius:50%;border:3px solid #ffffff55;color:#fff;font-size:16px;padding:0}
+.sw.sel{border-color:#fff;box-shadow:0 0 10px #fff}
+.gcyc{align-self:flex-start;min-width:50%}
 </style>
 </head>
 <body>
@@ -67,7 +90,7 @@ canvas{display:block}
 <div id="hud">
   <div id="spd"><b id="kmh">0</b><span>km/h</span><div id="rpmb"><i id="rpm"></i></div></div>
   <div id="mid"><div class="bar"><i id="bal"></i></div><div class="bar nit"><i id="nit"></i></div><div id="combo"></div></div>
-  <div id="sc"><div id="score">0</div><div id="best"></div><div id="dist"></div></div>
+  <div id="sc"><div id="score">0</div><div id="coins"></div><div id="best"></div><div id="dist"></div></div>
   <div id="msg"></div>
 </div>
 <div id="top"><button id="bC" class="ib">📷</button><button id="bP" class="ib">⏸</button></div>
@@ -81,25 +104,35 @@ canvas{display:block}
     <div class="t1">MOTO</div>
     <span class="t2">PIRUETA</span>
     <span class="t3">BRICEÑO</span>
-    <div class="sub">KAWASAKI NINJA H2R</div>
+    <div class="sub" id="mBike">KAWASAKI NINJA H2R</div>
     <div id="mBest"></div>
   </div>
   <div class="col">
     <button id="mPlay" class="mb big">JUGAR</button>
+    <button id="mGarage" class="mb mid">🔧 GARAJE</button>
     <button id="mNew" class="mb" style="display:none">NUEVA PARTIDA</button>
     <div class="grid">
-      <button id="mQ" class="mb">CALIDAD</button>
+      <button id="mMap" class="mb">MAPA</button>
       <button id="mCam" class="mb">CÁMARA</button>
+      <button id="mQ" class="mb">CALIDAD</button>
       <button id="mS" class="mb">SONIDO</button>
       <button id="mM" class="mb">MÚSICA</button>
+      <button id="mTest" class="mb">🔊 PROBAR</button>
     </div>
-    <div class="help">Arrastra la pantalla para mover la cámara · 📷 cambia de vista</div>
+    <div class="help" id="mHelp">Arrastra la pantalla para mover la cámara</div>
   </div>
+</div>
+
+<div id="garage">
+  <div id="gTop"><div id="gMoney">🪙 0</div><button id="gDone" class="mb">LISTO ✔</button></div>
+  <div id="gTabs"></div>
+  <div id="gBody"></div>
 </div>
 
 <div id="over">
   <div id="ovt">¡CHOCASTE!</div>
   <div id="ovs">0 pts</div>
+  <div id="ovc"></div>
   <div class="grid" style="width:min(80vw,520px)">
     <button id="mRetry" class="mb big">REINTENTAR</button>
     <button id="mHome" class="mb big" style="background:#ffffff33">MENÚ</button>

@@ -15,6 +15,15 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - name: Llave de firma fija (para actualizar sin perder datos)
+        run: |
+          if keytool -list -keystore debug.keystore -storepass android >/dev/null 2>&1; then
+            mkdir -p ~/.android
+            cp debug.keystore ~/.android/debug.keystore
+            echo "Usando llave fija"
+          else
+            echo "Llave fija no valida, se usa la automatica"
+          fi
       - run: npm install
       - run: npm run build
       - run: npx cap add android

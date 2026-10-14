@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Sube el proyecto, espera a GitHub Actions, desinstala la versión vieja con root e instala la nueva.
+# Sube el proyecto, espera a GitHub Actions e instala con root.
+# Intenta actualizar encima (conserva tu progreso); si la firma es distinta, desinstala la vieja y instala la nueva.
 set -e
 cd "$(dirname "$0")"
 PKG=com.termux.motoh2r
@@ -39,6 +40,6 @@ rm -rf "$OUT"; mkdir -p "$OUT"
 gh run download "$ID" -n moto-h2r-apk -D "$OUT"
 cp "$OUT/app-debug.apk" "$HOME/storage/downloads/MotoPirueta.apk" 2>/dev/null || true
 
-echo ">> Instalando con root (desinstala la vieja primero)..."
-su -c "pm uninstall $PKG >/dev/null 2>&1; cp '$OUT/app-debug.apk' /data/local/tmp/mp.apk && chmod 644 /data/local/tmp/mp.apk && pm install -r /data/local/tmp/mp.apk && rm -f /data/local/tmp/mp.apk && monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1"
+echo ">> Instalando con root..."
+su -c "cp '$OUT/app-debug.apk' /data/local/tmp/mp.apk && chmod 644 /data/local/tmp/mp.apk && { pm install -r /data/local/tmp/mp.apk || { echo 'Firma distinta: desinstalo la vieja...'; pm uninstall $PKG; pm install -r /data/local/tmp/mp.apk; }; } && rm -f /data/local/tmp/mp.apk && monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1"
 echo ">> Listo: Moto Pirueta Briceño instalado y abierto."
