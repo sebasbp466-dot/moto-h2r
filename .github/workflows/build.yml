@@ -18,8 +18,10 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npx cap add android
-      - name: Forzar horizontal
-        run: sed -i 's/android:launchMode="singleTask"/android:launchMode="singleTask" android:screenOrientation="sensorLandscape"/' android/app/src/main/AndroidManifest.xml
+      - name: Horizontal y pantalla completa
+        run: |
+          sed -i 's/android:launchMode="singleTask"/android:launchMode="singleTask" android:screenOrientation="sensorLandscape"/' android/app/src/main/AndroidManifest.xml
+          sed -i 's#<item name="windowNoTitle">true</item>#<item name="windowNoTitle">true</item><item name="android:windowFullscreen">true</item>#' android/app/src/main/res/values/styles.xml
       - run: npx cap sync android
       - name: Compilar APK
         run: |

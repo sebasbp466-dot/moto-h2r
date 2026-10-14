@@ -3,52 +3,109 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Moto H2R</title>
+<title>Moto Pirueta Briceño</title>
 <style>
 *{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
-html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:system-ui,sans-serif;color:#fff}
+html,body{margin:0;height:100%;overflow:hidden;background:#12081f;font-family:'Arial Black',Impact,system-ui,sans-serif;color:#fff}
 canvas{display:block}
-#hud{position:fixed;inset:0;pointer-events:none}
-#spd{position:absolute;top:10px;left:16px;font-size:20px;text-shadow:0 2px 4px #000}
-#spd b{font-size:42px}
-#score{position:absolute;top:10px;right:16px;font-size:34px;font-weight:700;text-shadow:0 2px 4px #000}
-#best{position:absolute;top:52px;right:16px;font-size:14px;opacity:.8}
-#bal{position:absolute;top:14px;left:50%;width:34%;height:10px;transform:translateX(-50%);background:#0006;border-radius:6px;overflow:hidden}
-#bal i{display:block;height:100%;width:0;background:#3ddc5a}
-#combo{position:absolute;top:32px;width:100%;text-align:center;font-size:22px;font-weight:800;color:#ffd400;text-shadow:0 2px 4px #000}
-#msg{position:absolute;top:30%;width:100%;text-align:center;font-size:28px;font-weight:800;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .2s}
-#msg.show{opacity:1}
-#ctl{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding:0 18px calc(14px + env(safe-area-inset-bottom))}
-.grp{display:flex;gap:14px;align-items:flex-end}
-button{border:0;color:#fff;background:#ffffff33;border-radius:50%;width:84px;height:84px;font-size:32px;font-weight:800;backdrop-filter:blur(2px)}
-button.wide{border-radius:42px;width:132px;font-size:17px}
-button#bG{background:#2bd14a88;height:96px}
-button#bW{background:#ffb30088}
-button.on{background:#fff9;transform:scale(.95)}
-#ov{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000a;text-align:center;padding:20px}
-#ov h1{font-size:44px;margin:0 0 6px;letter-spacing:2px}
-#ov p{margin:6px 0;font-size:22px}
-#ov .s{font-size:14px;opacity:.75;max-width:420px}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 48%,rgba(12,0,24,.8) 100%);opacity:0}
+#flash{position:fixed;inset:0;pointer-events:none;opacity:0;background:#fff}
+#err{position:fixed;left:0;right:0;bottom:0;background:#a00c;color:#fff;font:12px monospace;padding:6px;display:none;z-index:99;pointer-events:none}
+
+#hud{position:fixed;inset:0;pointer-events:none;text-shadow:0 2px 6px #000}
+#spd{position:absolute;top:8px;left:16px}
+#spd b{font-size:46px;font-style:italic}
+#spd span{font-size:15px;margin-left:4px;opacity:.85}
+#rpmb{width:150px;height:7px;background:#0007;border-radius:5px;overflow:hidden;margin-top:2px}
+#rpm{display:block;height:100%;width:0;background:linear-gradient(90deg,#3ddc5a,#ffd400,#ff3b30)}
+#mid{position:absolute;top:10px;left:50%;width:30%;transform:translateX(-50%)}
+.bar{height:9px;background:#0007;border-radius:6px;overflow:hidden;margin-bottom:5px}
+.bar i{display:block;height:100%;width:0;background:#3ddc5a}
+.bar.nit i{background:linear-gradient(90deg,#1e90ff,#7df9ff)}
+#combo{text-align:center;font-size:20px;color:#ffd400;min-height:26px;font-style:italic}
+#sc{position:absolute;top:8px;right:16px;text-align:right}
+#score{font-size:36px;font-style:italic}
+#best,#dist{font-size:13px;opacity:.85}
+#msg{position:absolute;top:30%;width:100%;text-align:center;font-size:34px;font-style:italic;color:#fff;opacity:0}
+#msg.show{animation:pop .9s ease-out}
+@keyframes pop{0%{opacity:0;transform:scale(.4)}15%{opacity:1;transform:scale(1.15)}30%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.05)}}
+
+#top{position:fixed;top:78px;right:14px;display:flex;gap:10px}
+.ib{border:0;color:#fff;background:#00000066;border-radius:50%;width:46px;height:46px;font-size:20px}
+
+#ctl{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:flex-end;padding:0 16px calc(12px + env(safe-area-inset-bottom));pointer-events:none}
+.grp{display:flex;gap:12px;align-items:flex-end}
+.cb{pointer-events:auto;border:0;color:#fff;background:#ffffff33;border-radius:50%;width:78px;height:78px;font-size:30px;font-weight:800;backdrop-filter:blur(2px)}
+.cb.wide{border-radius:40px;width:104px;font-size:14px;height:74px}
+#bG{background:#2bd14a99;height:92px}
+#bW{background:#ffb30099}
+#bN{background:#1e90ffaa}
+.cb.on{background:#fffa;transform:scale(.94)}
+
+#menu,#over{position:fixed;inset:0;display:flex;align-items:center;justify-content:space-around;gap:16px;padding:12px 24px;background:linear-gradient(120deg,#1a0b2eee,#4a1236aa)}
+#over{display:none;background:#000b;flex-direction:column;justify-content:center}
+.logo{text-align:left}
+.t1{font-size:min(8vh,7vw);letter-spacing:.3em;color:#ffd9a0;font-style:italic}
+.t2{display:block;font-size:min(15vh,11vw);line-height:.95;font-style:italic;background:linear-gradient(90deg,#ffb300,#ff3d71);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 14px #ff3d7188)}
+.t3{display:block;font-size:min(17vh,12.5vw);line-height:.95;font-style:italic;color:#fff;text-shadow:0 0 18px #7df9ff,0 0 4px #7df9ff}
+.sub{margin-top:8px;font-size:min(4.2vh,3.4vw);opacity:.85;font-family:system-ui,sans-serif;font-weight:700;letter-spacing:.12em}
+#mBest{margin-top:6px;font-size:min(4vh,3.3vw);color:#ffd400}
+.col{display:flex;flex-direction:column;gap:10px;min-width:min(46vw,300px)}
+.mb{pointer-events:auto;border:0;border-radius:14px;color:#fff;background:#ffffff26;padding:12px 10px;font-size:min(4.6vh,3.6vw);font-family:inherit;font-weight:800;letter-spacing:.04em}
+.mb.big{background:linear-gradient(90deg,#ff9d00,#ff3d71);font-size:min(7vh,5vw);padding:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#ovt{font-size:min(11vh,8vw);font-style:italic;color:#ff5252;text-shadow:0 0 18px #ff0000aa}
+#ovs{font-size:min(6vh,5vw);color:#ffd400}
+.help{font-family:system-ui,sans-serif;font-weight:600;font-size:min(3.2vh,2.6vw);opacity:.75;text-align:center;max-width:300px}
 </style>
 </head>
 <body>
+<canvas id="fx"></canvas>
+<div id="vig"></div>
+<div id="flash"></div>
 <div id="hud">
-  <div id="spd"><b id="kmh">0</b> km/h</div>
-  <div id="bal"><i></i></div>
-  <div id="score">0</div>
-  <div id="best"></div>
-  <div id="combo"></div>
+  <div id="spd"><b id="kmh">0</b><span>km/h</span><div id="rpmb"><i id="rpm"></i></div></div>
+  <div id="mid"><div class="bar"><i id="bal"></i></div><div class="bar nit"><i id="nit"></i></div><div id="combo"></div></div>
+  <div id="sc"><div id="score">0</div><div id="best"></div><div id="dist"></div></div>
   <div id="msg"></div>
 </div>
+<div id="top"><button id="bC" class="ib">📷</button><button id="bP" class="ib">⏸</button></div>
 <div id="ctl">
-  <div class="grp"><button id="bL">◀</button><button id="bR">▶</button></div>
-  <div class="grp"><button id="bW" class="wide">CABALLITO</button><button id="bG" class="wide">GAS</button></div>
+  <div class="grp"><button id="bL" class="cb">◀</button><button id="bR" class="cb">▶</button></div>
+  <div class="grp"><button id="bN" class="cb wide">NITRO</button><button id="bW" class="cb wide">CABALLITO</button><button id="bG" class="cb wide">GAS</button></div>
 </div>
-<div id="ov">
-  <h1>NINJA H2R</h1>
-  <p id="ovt">Toca para arrancar</p>
-  <p class="s">◀ ▶ cambias de carril · GAS acelera · CABALLITO levanta la rueda: suéltalo a tiempo o te volteas</p>
+
+<div id="menu">
+  <div class="logo">
+    <div class="t1">MOTO</div>
+    <span class="t2">PIRUETA</span>
+    <span class="t3">BRICEÑO</span>
+    <div class="sub">KAWASAKI NINJA H2R</div>
+    <div id="mBest"></div>
+  </div>
+  <div class="col">
+    <button id="mPlay" class="mb big">JUGAR</button>
+    <button id="mNew" class="mb" style="display:none">NUEVA PARTIDA</button>
+    <div class="grid">
+      <button id="mQ" class="mb">CALIDAD</button>
+      <button id="mCam" class="mb">CÁMARA</button>
+      <button id="mS" class="mb">SONIDO</button>
+      <button id="mM" class="mb">MÚSICA</button>
+    </div>
+    <div class="help">Arrastra la pantalla para mover la cámara · 📷 cambia de vista</div>
+  </div>
 </div>
+
+<div id="over">
+  <div id="ovt">¡CHOCASTE!</div>
+  <div id="ovs">0 pts</div>
+  <div class="grid" style="width:min(80vw,520px)">
+    <button id="mRetry" class="mb big">REINTENTAR</button>
+    <button id="mHome" class="mb big" style="background:#ffffff33">MENÚ</button>
+  </div>
+</div>
+<div id="err"></div>
 <script type="module" src="/src/main.js"></script>
 </body>
 </html>
