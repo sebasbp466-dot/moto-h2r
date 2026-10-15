@@ -52,7 +52,7 @@ export function createGarage(ctx) {
         card.appendChild(mk('div', 'gstat', 'VEL ' + bar(b.vmax, 90) + '  ACE ' + bar(b.acc, 32)));
         card.appendChild(mk('div', 'gstat', 'AGA ' + bar(b.hand, 1.4) + '  EQU ' + bar(b.bal, 1.4)));
         card.addEventListener('click', () => {
-          if (owned) { save.bike = i; ok(); changed(); return; }
+          if (save.owned.includes(i)) { save.bike = i; ok(); changed(); return; }
           if (save.money >= b.price) { save.money -= b.price; save.owned.push(i); save.bike = i; ctx.sfx(() => ctx.audio.buy()); changed(); }
           else ctx.sfx(() => ctx.audio.deny());
         });

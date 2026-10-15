@@ -41,7 +41,8 @@ export const MAPS = [
   { id: 'noche', name: 'NOCHE NEÓN', horizon: 0x3a1060, mid: 0x1a0b40, top: 0x02020c, sunDir: [0.4, 0.35, -1], sunCol: 0xaac4ff, sunInt: 0.45,
     hemi: [0x5060a0, 0x0a0a14, 0.45], fog: [0x1a1030, 30, 300], exposure: 1.25, bloom: 1.7, stars: 1,
     ground: { tex: 'dark', tint: 0x666677 }, road: { color: 0xbbbbc8, rough: 0.18 }, props: 'city', leaf: 0x2a6b32, trunk: 0x5a3b21,
-    lamp: { on: true, col: [1.6, 3.6, 5.5], pool: true }, mount: [0x0c0820, 0x150c30], weather: 0, beam: 0.85 },
+    lamp: { on: true, col: [1.6, 3.6, 5.5], pool: true }, mount: [0x0c0820, 0x150c30], weather: 0, beam: 0.85, flare: 0.7,
+    envLights: [[-250, 60, -150, 220, 5, 0.6, 3], [250, 80, 100, 220, 0.6, 3.5, 5], [0, 300, 0, 240, 1, 1, 1.4], [0, 40, 300, 200, 4, 1.5, 0.4]] },
   { id: 'desierto', name: 'DESIERTO', horizon: 0xffd9a0, mid: 0xffb46a, top: 0x4a8fe0, sunDir: [-0.2, 0.45, -1], sunCol: 0xfff0c8, sunInt: 2.8,
     hemi: [0xffe8c8, 0x8a6a40, 0.95], fog: [0xf0c890, 60, 420], exposure: 1.0, bloom: 0.7, stars: 0,
     ground: { tex: 'sand', tint: 0xffffff }, road: { color: 0xd8d0c8, rough: 0.9 }, props: 'desert', leaf: 0x2a6b32, trunk: 0x5a3b21,
@@ -53,7 +54,8 @@ export const MAPS = [
   { id: 'tormenta', name: 'TORMENTA', horizon: 0x4a5666, mid: 0x2e3846, top: 0x10151c, sunDir: [-0.2, 0.15, -1], sunCol: 0xaabbcc, sunInt: 0.6,
     hemi: [0x8aa0b8, 0x1a2028, 0.6], fog: [0x3a4654, 20, 240], exposure: 1.0, bloom: 1.0, stars: 0,
     ground: { tex: 'dark', tint: 0x4a5a44 }, road: { color: 0xaaaaaa, rough: 0.15 }, props: 'forest', leaf: 0x1c3a34, trunk: 0x2a2018,
-    lamp: { on: true, col: [4.5, 4.5, 3.2], pool: true }, mount: [0x222a34, 0x2c3642], weather: 1, lightning: true, beam: 0.7 },
+    lamp: { on: true, col: [4.5, 4.5, 3.2], pool: true }, mount: [0x222a34, 0x2c3642], weather: 1, lightning: true, beam: 0.7, flare: 0.08,
+    envLights: [[0, 300, 0, 320, 1.4, 1.7, 2.2], [-250, 40, -200, 200, 1.0, 1.2, 1.6]] },
 ];
 
 export const SAVE_KEY = 'mpbSave3';

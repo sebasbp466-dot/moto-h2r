@@ -71,11 +71,20 @@ export function createWorld(save, showErr) {
   });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(450, 24, 16), skyMat);
   sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
+  const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: M.glowTex(), color: 0xffd9a0, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0.5 }));
+  flare.scale.set(240, 240, 1); flare.renderOrder = -5; scene.add(flare);
+  const _dir = new THREE.Vector3();
   let envRT = null;
   function rebuildEnv() {
     try {
       const pm = new THREE.PMREMGenerator(renderer);
       const es = new THREE.Scene(); es.add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), skyMat));
+      // paneles de luz (estudio / neón) para que la pintura y el casco tengan reflejos vivos
+      for (const l of (curMap.envLights || [[0, 300, 0, 280, 2.4, 2.4, 2.4], [-200, 40, -260, 160, 2.2, 1.6, 1.0]])) {
+        const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }); mat.color.setRGB(l[4], l[5], l[6]);
+        const pl = new THREE.Mesh(new THREE.PlaneGeometry(l[3], l[3] * 0.35), mat);
+        pl.position.set(l[0], l[1], l[2]); pl.lookAt(0, 0, 0); es.add(pl);
+      }
       const rt = pm.fromScene(es, 0, 1, 1000);
       if (envRT) envRT.dispose();
       envRT = rt; scene.environment = rt.texture; pm.dispose();
@@ -109,7 +118,7 @@ export function createWorld(save, showErr) {
       try {
         if (!composer) buildComposer();
         composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
-        bloomBase = save.q === 2 ? 0.85 : 0.6; setBloom();
+        bloomBase = save.q === 2 ? 1.0 : 0.75; setBloom();
       } catch (e) { composer = null; showErr('post: ' + e.message); }
     }
     sun.castShadow = save.q === 2;
@@ -423,7 +432,8 @@ export function createWorld(save, showErr) {
     sun.color.set(m.sunCol); sun.intensity = m.sunInt;
     renderer.toneMappingExposure = m.exposure;
     ground.material.map = gt[m.ground.tex]; ground.material.color.set(m.ground.tint); ground.material.needsUpdate = true;
-    if (roadMat) { roadMat.roughness = m.road.rough; roadMat.color.set(m.road.color); }
+    if (roadMat) { roadMat.roughness = m.road.rough; roadMat.color.set(m.road.color); roadMat.envMapIntensity = m.road.rough < 0.3 ? 1.7 : 0.6; }
+    flare.material.color.set(m.sunCol);
     for (const k in sets) sets[k].meshes.forEach(x => { x.visible = k === m.props; });
     leafMat.color.set(m.leaf); trunkMat.color.set(m.trunk);
     mMat[0].color.set(m.mount[0]); mMat[1].color.set(m.mount[1]);
@@ -443,6 +453,10 @@ export function createWorld(save, showErr) {
     sun.target.position.set(bp.x, 0, bp.z);
     sun.position.set(bp.x + sunDir.x * 70, sunDir.y * 70, bp.z + sunDir.z * 70);
     sun.target.updateMatrixWorld();
+    camera.getWorldDirection(_dir);
+    const dp = Math.max(0, _dir.dot(sunDir));
+    flare.position.copy(camera.position).addScaledVector(sunDir, 400);
+    flare.material.opacity = clamp(0.1 + Math.pow(dp, 4) * 0.9, 0, 1) * (curMap.flare == null ? 1 : curMap.flare);
   }
   function updateProps(s) {
     sets[curMap.props].pool.update(s); postPool.update(s);

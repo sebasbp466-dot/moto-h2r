@@ -35,10 +35,12 @@ function rebuildBike() {
 /* ---------- tráfico ---------- */
 const carCols = [0xc0392b, 0x2980b9, 0xf1c40f, 0xecf0f1, 0x27ae60, 0x8e44ad, 0xe67e22, 0x7f8c8d];
 const pick = () => carCols[(Math.random() * carCols.length) | 0];
+const CAR_TYPES = ['sedan', 'sedan', 'suv', 'suv', 'van', 'truck', 'police'];
 function makeCar() {
-  const m = M.buildCar(Math.random() < 0.2, pick(), pick());
+  const type = CAR_TYPES[(Math.random() * CAR_TYPES.length) | 0];
+  const m = M.buildCar(type, pick(), pick());
   world.scene.add(m.g);
-  return { g: m.g, len: m.len, wid: m.wid, s: 0, l: 0, v: 20, base: 20, nm: false };
+  return { g: m.g, len: m.len, wid: m.wid, type, blink: m.blink, s: 0, l: 0, v: 20, base: 20, nm: false };
 }
 const cars = [];
 for (let i = 0; i < 20; i++) cars.push(makeCar());
@@ -48,7 +50,7 @@ function spawn(c, ps, minAhead) {
     c.s = ps + minAhead + Math.random() * 450;
     if (!cars.some(o => o !== c && o.l === c.l && Math.abs(o.s - c.s) < 30)) break;
   }
-  c.base = rnd(14, 34); c.v = c.base; c.nm = false;
+  c.base = rnd(14, 34) * (c.type === 'truck' ? 0.75 : 1); c.v = c.base; c.nm = false;
 }
 
 /* ---------- estado e interfaz ---------- */
@@ -370,6 +372,7 @@ function update(rdt) {
   bike.rW.rotation.x -= st.v * dt / bike.rW.userData.R; bike.fW.rotation.x -= st.v * dt / bike.fW.userData.R;
   const sv = clamp(st.v / 85, 0, 1.3);
   bike.riderG.position.x = st.steer * 0.1; bike.riderG.rotation.z = -st.steer * 0.12;
+  bike.headG.rotation.y = -st.steer * 0.35 + Math.sin(st.t * 0.7) * 0.03; bike.headG.rotation.x = -st.p * 0.45;
   bike.joints.forEach((j, i) => { j.rotation.x = -(0.1 + 0.4 * sv) + Math.sin(st.t * 14 + i * 1.3) * 0.1 * (0.3 + sv); j.rotation.z = Math.sin(st.t * 9 + i) * 0.08 * sv; });
   world.glow.material.opacity = 0.55 + 0.25 * Math.sin(st.t * 6) + (st.nitroOn ? 0.3 : 0);
   bikeRoot.updateMatrixWorld(true);
@@ -405,6 +408,7 @@ function update(rdt) {
     roadPos(c.s, c.l, tmp);
     c.g.position.set(tmp.x, 0, tmp.z);
     c.g.rotation.y = -Math.atan(cdx(c.s));
+    if (c.blink && c.s - st.s < 250) { const ph = Math.floor(st.t * 6) % 2; c.blink.r.color.setRGB(ph ? 5 : 0.3, 0.2, 0.2); c.blink.b.color.setRGB(0.3, 0.8, ph ? 0.3 : 5); }
   }
   world.updateRoad(st.s); world.updateProps(st.s); world.follow(bikeRoot.position);
   if (!idle) world.updateCoins(st.s, st.t); else world.updateCoins(-9999, st.t);
