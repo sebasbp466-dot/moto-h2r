@@ -17,6 +17,7 @@ const world = createWorld(save, showErr);
 const { renderer, camera, bikeRoot, LANES } = world;
 const tmp = { x: 0, z: 0 };
 const audio = new GameAudio();
+audio.mode = save.amode || 0;
 audio.prefs(save.sfx, save.mv);
 const sfx = fn => { try { fn(); } catch (e) {} };
 
@@ -56,6 +57,8 @@ const st = { s: 0, l: 1.75, v: 0, p: 0, pPrev: 0, w: 0, drift: 0, steer: 0, lean
 const cam = { yaw: 0, pitch: 0, idle: 0, drag: null, orbit: 0, shake: 0, l: new THREE.Vector3(0, 3, 6) };
 const VIEWS = ['PERSECUCIÓN', 'CERCA', 'CASCO', 'FRONTAL'];
 const MV = ['NO', 'BAJA', 'MEDIA', 'ALTA'];
+const leds = [];
+for (let i = 0; i < 12; i++) { const e = document.createElement('i'); $('leds').appendChild(e); leds.push(e); }
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _ex = new THREE.Vector3();
 
 function bindBtn(id, key) {
@@ -79,7 +82,7 @@ addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; cam
 // desbloquear el audio con cualquier toque
 let audioOn = false;
 const unlock = () => { try { audio.init(); if (!audioOn) { audioOn = true; audio.prefs(save.sfx, save.mv); } } catch (e) {} };
-addEventListener('pointerdown', unlock);
+['pointerup', 'touchend', 'click', 'keydown'].forEach(t => addEventListener(t, unlock));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) sfx(() => audio.init()); });
 
 // arrastrar la pantalla = mover la cámara
@@ -98,16 +101,28 @@ function showMsg(t, color) {
   m.classList.remove('show'); void m.offsetWidth; m.classList.add('show');
 }
 function cycleView() { save.view = (save.view + 1) % 4; persist(save); showMsg(VIEWS[save.view]); refreshMenu(); sfx(() => audio.click()); }
+const setRow = (id, v) => { try { $(id).querySelector('b').textContent = v; } catch (e) {} };
+const MAPN = MAPS.length; // save.map === MAPN  ->  mapa aleatorio
+const mapName = () => (save.map === MAPN ? 'ALEATORIO' : MAPS[save.map].name);
+let lastRand = -1;
+function applyMapSel() {
+  let i = save.map;
+  if (i === MAPN) { do { i = (Math.random() * MAPN) | 0; } while (i === lastRand && MAPN > 1); lastRand = i; }
+  world.applyMap(i);
+}
 function refreshMenu() {
-  $('mMap').textContent = 'MAPA: ' + MAPS[save.map].name;
-  $('mQ').textContent = 'CALIDAD: ' + ['BAJA', 'MEDIA', 'ALTA'][save.q];
-  $('mS').textContent = 'SONIDO: ' + (save.sfx ? 'SÍ' : 'NO');
-  $('mM').textContent = 'MÚSICA: ' + MV[save.mv];
-  $('mCam').textContent = 'CÁMARA: ' + VIEWS[save.view];
+  setRow('mMap', mapName());
+  setRow('mQ', ['BAJA', 'MEDIA', 'ALTA'][save.q]);
+  setRow('mS', save.sfx ? 'SÍ' : 'NO');
+  setRow('mM', MV[save.mv]);
+  setRow('mCam', VIEWS[save.view]);
+  setRow('mTest', audio.be ? audio.be.name : 'AUTO');
   $('mPlay').textContent = st.paused ? 'CONTINUAR' : 'JUGAR';
   $('mNew').style.display = st.paused ? 'block' : 'none';
   $('mGarage').style.display = st.paused ? 'none' : 'block';
-  $('mBest').textContent = (save.best ? 'RÉCORD: ' + save.best + '   ' : '') + '🪙 ' + save.money;
+  $('mMapName').textContent = mapName();
+  $('mBank').textContent = save.money;
+  $('mRec').textContent = save.best;
 }
 function bank() {
   if (st.banked) return;
@@ -127,6 +142,7 @@ function resetWorld() {
 }
 function startRun() {
   unlock();
+  if (save.map === MAPN) applyMapSel();
   S = stats(save);
   st.state = 'run'; st.paused = false; st.v = 14; st.overShown = false;
   $('menu').style.display = 'none'; $('over').style.display = 'none';
@@ -138,17 +154,17 @@ function pauseGame() {
   input.left = input.right = input.gas = input.wheelie = input.nitro = false;
 }
 const click = fn => e => { unlock(); sfx(() => audio.click()); fn(e); };
-const garage = createGarage({ save, rebuild: () => { rebuildBike(); }, applyMap: i => { world.applyMap(i); refreshMenu(); }, sfx, audio });
+const garage = createGarage({ save, rebuild: () => { rebuildBike(); }, applyMap: () => { applyMapSel(); refreshMenu(); }, sfx, audio });
 $('mPlay').addEventListener('click', click(() => { if (st.paused) { st.state = 'run'; st.paused = false; $('menu').style.display = 'none'; } else { resetWorld(); startRun(); } }));
 $('mNew').addEventListener('click', click(() => { resetWorld(); startRun(); }));
 $('mGarage').addEventListener('click', click(() => { st.state = 'garage'; $('menu').style.display = 'none'; $('garage').style.display = 'flex'; garage.open(); }));
 $('gDone').addEventListener('click', click(() => { st.state = 'menu'; $('garage').style.display = 'none'; $('menu').style.display = 'flex'; S = stats(save); refreshMenu(); }));
-$('mMap').addEventListener('click', click(() => { save.map = (save.map + 1) % MAPS.length; persist(save); world.applyMap(save.map); refreshMenu(); }));
+$('mMap').addEventListener('click', click(() => { save.map = (save.map + 1) % (MAPN + 1); persist(save); applyMapSel(); refreshMenu(); }));
 $('mQ').addEventListener('click', click(() => { save.q = (save.q + 1) % 3; persist(save); world.applyQuality(); refreshMenu(); }));
 $('mS').addEventListener('click', click(() => { save.sfx = !save.sfx; persist(save); audio.prefs(save.sfx, save.mv); refreshMenu(); }));
 $('mM').addEventListener('click', click(() => { save.mv = (save.mv + 1) % 4; persist(save); audio.prefs(save.sfx, save.mv); refreshMenu(); }));
 $('mCam').addEventListener('click', click(() => { save.view = (save.view + 1) % 4; persist(save); refreshMenu(); }));
-$('mTest').addEventListener('click', click(() => { sfx(() => audio.test()); }));
+$('mTest').addEventListener('click', click(() => { audio.toggleBackend(); save.amode = audio.mode; persist(save); refreshMenu(); }));
 $('mRetry').addEventListener('click', click(() => { resetWorld(); startRun(); }));
 $('mHome').addEventListener('click', click(() => { resetWorld(); }));
 $('bP').addEventListener('click', pauseGame);
@@ -410,20 +426,22 @@ function update(rdt) {
 
   // HUD
   hudT += rdt; helpT += rdt;
-  if (helpT > 0.5) { helpT = 0; if (idle) $('mHelp').textContent = 'Audio: ' + audio.state + ' · arrastra la pantalla para mover la cámara'; }
+  if (helpT > 0.5) { helpT = 0; if (idle) $('mHelp').textContent = 'audio: ' + audio.state + (audio.err ? ' ! ' + audio.err : '') + ' · arrastra para mover la cámara'; }
   if (hudT > 0.05) {
     hudT = 0;
-    $('kmh').textContent = Math.round(st.v * 3.6);
+    const rp = rpmOf(st.v), on = st.state === 'menu' || st.state === 'garage' ? 0 : Math.round(rp.rpm * 12);
+    $('spd').textContent = Math.round(st.v * 3.6);
+    $('gear').textContent = st.v < 1 ? 'N' : rp.gear + 1;
+    leds.forEach((e, i) => { e.className = i < on ? (i < 7 ? 'g' : i < 10 ? 'y' : 'r') : ''; });
     $('score').textContent = Math.floor(st.score);
     $('coins').textContent = st.runCoins ? '🪙 ' + st.runCoins : '';
-    $('best').textContent = save.best ? 'Récord ' + save.best : '';
-    $('dist').textContent = (st.s / 1000).toFixed(2) + ' km';
+    $('best').textContent = save.best ? 'REC ' + save.best : '';
+    $('dist').textContent = (st.s / 1000).toFixed(2) + ' KM';
     $('combo').textContent = st.combo > 1 ? 'x' + st.combo + (st.p > 0.35 ? ' CABALLITO' : '') : '';
     const bal = $('bal');
     bal.style.width = Math.min(100, st.p / 1.25 * 100) + '%';
     bal.style.background = st.p > 1.0 ? '#ff3b30' : st.p > 0.8 ? '#ffb300' : '#3ddc5a';
     $('nit').style.width = Math.floor(st.nitro * 100) + '%';
-    $('rpm').style.width = Math.floor(rpmOf(st.v).rpm * 100) + '%';
     if (st.state === 'crash' && st.crashT > 0.9 && !st.overShown) {
       st.overShown = true;
       $('ovt').textContent = st.crashMsg;
@@ -435,7 +453,7 @@ function update(rdt) {
 }
 
 world.applyQuality();
-world.applyMap(save.map);
+applyMapSel();
 rebuildBike();
 resetWorld();
 let last = performance.now();

@@ -95,10 +95,15 @@ export function createGarage(ctx) {
       MAPS.forEach((m, i) => {
         const card = mk('button', 'gcard' + (save.map === i ? ' sel' : ''));
         card.appendChild(mk('div', 'gname', m.name));
-        card.style.borderLeft = '10px solid ' + hx(m.horizon);
+        card.style.borderLeftColor = hx(m.horizon);
         card.addEventListener('click', () => { save.map = i; ok(); persist(save); ctx.applyMap(i); render(); });
         body.appendChild(card);
       });
+      const rc = mk('button', 'gcard' + (save.map === MAPS.length ? ' sel' : ''));
+      rc.appendChild(mk('div', 'gname', 'ALEATORIO'));
+      rc.appendChild(mk('div', 'gdesc', 'un mapa distinto en cada partida'));
+      rc.addEventListener('click', () => { save.map = MAPS.length; ok(); persist(save); ctx.applyMap(save.map); render(); });
+      body.appendChild(rc);
     }
   }
   return { render, open() { tab = 0; render(); } };
