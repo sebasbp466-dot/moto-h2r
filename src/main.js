@@ -36,9 +36,13 @@ function rebuildBike() {
 const carCols = [0xc0392b, 0x2980b9, 0xf1c40f, 0xecf0f1, 0x27ae60, 0x8e44ad, 0xe67e22, 0x7f8c8d];
 const pick = () => carCols[(Math.random() * carCols.length) | 0];
 const CAR_TYPES = ['sedan', 'sedan', 'suv', 'suv', 'van', 'truck', 'police'];
+const blobMat = new THREE.MeshBasicMaterial({ map: M.blobTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+function addBlob(g, w, l, z = 0) { const b = new THREE.Mesh(new THREE.PlaneGeometry(w, l), blobMat); b.rotation.x = -Math.PI / 2; b.position.set(0, 0.04, z); g.add(b); }
+addBlob(bikeRoot, 1.1, 2.6, -0.6);
 function makeCar() {
   const type = CAR_TYPES[(Math.random() * CAR_TYPES.length) | 0];
   const m = M.buildCar(type, pick(), pick());
+  addBlob(m.g, m.wid * 1.5, m.len * 1.2);
   world.scene.add(m.g);
   return { g: m.g, len: m.len, wid: m.wid, type, blink: m.blink, s: 0, l: 0, v: 20, base: 20, nm: false };
 }
@@ -135,6 +139,7 @@ function bank() {
   persist(save);
 }
 function resetWorld() {
+  world.setGarage(false);
   if (st.paused) bank();
   Object.assign(st, { s: 0, l: 1.75, v: 0, p: 0, pPrev: 0, w: 0, drift: 0, steer: 0, leanZ: 0, score: 0, crashT: 0, flip: false, combo: 1, nitro: 0.5, nitroOn: false, state: 'menu', paused: false, wasWant: false, overShown: false, runCoins: 0, banked: false, chain: 0, chainT: 0, wT: 0, wMs: 0, slow: 0, earned: 0 });
   cars.forEach(c => spawn(c, 0, 80));
@@ -160,8 +165,8 @@ const UP_ANG = [1.57, 3.14, 0.9, 3.14];
 const garage = createGarage({ save, rebuild: () => { rebuildBike(); }, onUpgrade: i => { cam.orbit = UP_ANG[i] || 0; cam.hold = 2.5; bikeRoot.updateMatrixWorld(true); const p = bikeRoot.position; world.burst(p.x, 0.7, p.z, 40, 4, 2.4, 2, 0.6, 1.0); }, applyMap: () => { applyMapSel(); refreshMenu(); }, sfx, audio });
 $('mPlay').addEventListener('click', click(() => { if (st.paused) { st.state = 'run'; st.paused = false; $('menu').style.display = 'none'; } else { resetWorld(); startRun(); } }));
 $('mNew').addEventListener('click', click(() => { resetWorld(); startRun(); }));
-$('mGarage').addEventListener('click', click(() => { st.state = 'garage'; $('menu').style.display = 'none'; $('garage').style.display = 'flex'; garage.open(); }));
-$('gDone').addEventListener('click', click(() => { st.state = 'menu'; $('garage').style.display = 'none'; $('menu').style.display = 'flex'; S = stats(save); refreshMenu(); }));
+$('mGarage').addEventListener('click', click(() => { st.state = 'garage'; world.setGarage(true, bikeRoot.position, bikeRoot.rotation.y); $('menu').style.display = 'none'; $('garage').style.display = 'flex'; garage.open(); }));
+$('gDone').addEventListener('click', click(() => { st.state = 'menu'; world.setGarage(false); $('garage').style.display = 'none'; $('menu').style.display = 'flex'; S = stats(save); refreshMenu(); }));
 $('mMap').addEventListener('click', click(() => { save.map = (save.map + 1) % (MAPN + 1); persist(save); applyMapSel(); refreshMenu(); }));
 $('mQ').addEventListener('click', click(() => { save.q = (save.q + 1) % 3; persist(save); world.applyQuality(); refreshMenu(); }));
 $('mS').addEventListener('click', click(() => { save.sfx = !save.sfx; persist(save); audio.prefs(save.sfx, save.mv); refreshMenu(); }));
@@ -186,8 +191,16 @@ function crash(flip, text) {
 /* ---------- efectos 2D de velocidad ---------- */
 const fxc = $('fx'), fxx = fxc.getContext('2d');
 fxc.width = 480; fxc.height = 270;
+const drops = [];
+for (let i = 0; i < 14; i++) drops.push({ x: rnd(0, 480), y: rnd(0, 270), r: rnd(2, 5), v: rnd(2, 10) });
+function lensDrops() {
+  if (world.getMap().weather !== 1) return;
+  fxx.fillStyle = 'rgba(200,225,255,.18)'; fxx.strokeStyle = 'rgba(255,255,255,.35)';
+  for (const d of drops) { d.y += d.v * 0.016; if (d.y > 280) { d.y = -6; d.x = rnd(0, 480); } fxx.beginPath(); fxx.ellipse(d.x, d.y, d.r * 0.8, d.r * 1.2, 0, 0, 6.28); fxx.fill(); fxx.stroke(); }
+}
 function drawFx(k, nitro) {
   fxx.clearRect(0, 0, 480, 270);
+  lensDrops();
   if (k < 0.1) return;
   const n = Math.floor(12 + 40 * k);
   fxx.lineWidth = 1 + k * 1.6;
@@ -366,7 +379,7 @@ function update(rdt) {
   const leanTarget = st.state === 'crash' ? st.side * 1.45 : 0.4 * Math.atan(st.v * yr / 9.8) - st.steer * 0.45;
   st.leanZ += (leanTarget - st.leanZ) * (1 - Math.exp(-(st.state === 'crash' ? 6 : 8) * dt));
   roadPos(st.s, st.l, tmp);
-  bikeRoot.position.set(tmp.x, 0, tmp.z);
+  bikeRoot.position.set(tmp.x, st.state === 'garage' ? 0.04 : 0, tmp.z);
   bikeRoot.rotation.y = st.ry + yawExtra;
   bike.leanG.rotation.z = st.leanZ;
   bike.pitchG.rotation.x = st.p;

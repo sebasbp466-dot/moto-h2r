@@ -286,3 +286,38 @@ export function gantryBoard() {
   };
   set(1); return { tex: t, set };
 }
+
+/* ---------- texturas de escenario ---------- */
+export const blobTex = () => tex(64, 64, (x, w, h) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(0,0,0,.65)'); g.addColorStop(0.6, 'rgba(0,0,0,.25)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, w, h); });
+export const tuftTex = () => tex(128, 128, (x, w, h) => {
+  for (let i = 0; i < 70; i++) { const bx = rn(8, w - 8), tipx = bx + rn(-14, 14), tipy = rn(14, 100); x.fillStyle = `hsl(${70 + rn(0, 35)},${45 + rn(0, 25)}%,${24 + rn(0, 28)}%)`; x.beginPath(); x.moveTo(bx - 3, h); x.lineTo(tipx, tipy); x.lineTo(bx + 3, h); x.fill(); }
+});
+function drawHouse(x, lit) {
+  if (!lit) { x.fillStyle = '#f2ede2'; x.fillRect(0, 0, 128, 128); for (let i = 0; i < 900; i++) { x.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`; x.fillRect(Math.random() * 128, Math.random() * 128, 2, 2); } } else { x.fillStyle = '#000'; x.fillRect(0, 0, 128, 128); }
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) { const px = 14 + c * 38, py = 14 + r * 44; if (lit) { if (Math.random() < 0.6) { x.fillStyle = '#ffcf70'; x.fillRect(px, py, 20, 26); } } else { x.fillStyle = '#3a4a62'; x.fillRect(px, py, 20, 26); x.strokeStyle = '#fff'; x.lineWidth = 3; x.strokeRect(px, py, 20, 26); x.fillStyle = '#5b3a24'; x.fillRect(px - 3, py + 26, 26, 3); } }
+  if (!lit) { x.fillStyle = '#5b3a24'; x.fillRect(52, 90, 24, 38); }
+}
+export const houseTex = () => tex(128, 128, (x) => drawHouse(x, false));
+export const houseWinTex = () => tex(128, 128, (x) => drawHouse(x, true));
+export const skylineTex = night => tex(1024, 160, (x, w, h) => {
+  let px = 0;
+  while (px < w) {
+    const bw = rn(18, 52), c = 1 - Math.abs(px - w / 2) / (w / 2), bh = rn(24, 60) + c * rn(20, 100);
+    x.fillStyle = night ? '#0d1030' : '#56688a'; x.fillRect(px, h - bh, bw, bh);
+    if (bh > 90) { x.fillRect(px + bw / 2 - 1, h - bh - 18, 2, 18); }
+    if (night) for (let k = 0; k < bh / 9; k++) for (let j = 0; j < bw / 8; j++) if (Math.random() < 0.35) { x.fillStyle = ['#ffd27a', '#7df9ff', '#ff8ad9', '#fff2c0'][(Math.random() * 4) | 0]; x.fillRect(px + 3 + j * 8, h - bh + 4 + k * 9, 4, 5); }
+    px += bw + rn(0, 6);
+  }
+});
+export const concreteTex = () => tex(512, 512, (x, w, h) => {
+  x.fillStyle = '#3b3e43'; x.fillRect(0, 0, w, h);
+  for (let i = 0; i < 12000; i++) { const g = 40 + Math.random() * 40 | 0; x.fillStyle = `rgba(${g},${g},${g + 4},.35)`; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+  for (let i = 0; i < 7; i++) { const px = rn(0, w), py = rn(0, h), r = rn(30, 90), g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, 'rgba(5,5,7,.5)'); g.addColorStop(1, 'rgba(5,5,7,0)'); x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2); }
+  x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = 3; for (let k = 0; k <= 4; k++) { x.beginPath(); x.moveTo(k * 128, 0); x.lineTo(k * 128, h); x.stroke(); x.beginPath(); x.moveTo(0, k * 128); x.lineTo(w, k * 128); x.stroke(); }
+}, true);
+export const garageWallTex = () => tex(256, 256, (x, w, h) => {
+  x.fillStyle = '#4a4f55'; x.fillRect(0, 0, w, h);
+  for (let i = 0; i < w; i += 8) { x.fillStyle = i % 16 ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.18)'; x.fillRect(i, 0, 4, h); }
+  x.fillStyle = '#ff7a00'; x.fillRect(0, h * 0.5, w, 10);
+  for (let i = -h; i < w; i += 28) { x.fillStyle = '#ffd400'; x.beginPath(); x.moveTo(i, h); x.lineTo(i + 14, h); x.lineTo(i + 14 + 22, h - 22); x.lineTo(i + 22, h - 22); x.fill(); }
+}, true);

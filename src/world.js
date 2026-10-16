@@ -6,19 +6,14 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as M from './models.js';
+import { createScenery } from './scenery.js';
 import { MAPS } from './data.js';
 
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 export const rnd = (a, b) => a + Math.random() * (b - a);
 
-/* ---------- carretera con curvas (compartida con el juego) ---------- */
-export const cx = s => 20 * Math.sin(s * 0.012) + 10 * Math.sin(s * 0.03 + 1);
-export const cdx = s => 20 * 0.012 * Math.cos(s * 0.012) + 10 * 0.03 * Math.cos(s * 0.03 + 1);
-export const cddx = s => -20 * 0.012 * 0.012 * Math.sin(s * 0.012) - 10 * 0.03 * 0.03 * Math.sin(s * 0.03 + 1);
-export function roadPos(s, l, o) {
-  const d = cdx(s), n = Math.sqrt(d * d + 1);
-  o.x = cx(s) + l / n; o.z = -s + l * d / n; return o;
-}
+import { cx, cdx, cddx, roadPos } from './road.js';
+export { cx, cdx, cddx, roadPos };
 
 const SpeedShader = {
   uniforms: { tDiffuse: { value: null }, strength: { value: 0 } },
@@ -52,9 +47,12 @@ export function createWorld(save, showErr) {
   const sunDir = new THREE.Vector3(-0.3, 0.2, -1).normalize();
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { sunDir: { value: sunDir }, horizon: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, top: { value: new THREE.Color() }, sunCol: { value: new THREE.Color() }, stars: { value: 0 }, flash: { value: 0 }, glare: { value: 0.5 } },
+    uniforms: { sunDir: { value: sunDir }, horizon: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, top: { value: new THREE.Color() }, sunCol: { value: new THREE.Color() }, stars: { value: 0 }, flash: { value: 0 }, glare: { value: 0.5 }, cloud: { value: 0.4 }, time: { value: 0 }, aurora: { value: 0 } },
     vertexShader: 'varying vec3 vDir; void main(){ vDir=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-    fragmentShader: `uniform vec3 sunDir,horizon,mid,top,sunCol; uniform float stars,flash,glare; varying vec3 vDir;
+    fragmentShader: `uniform vec3 sunDir,horizon,mid,top,sunCol; uniform float stars,flash,glare,cloud,time,aurora; varying vec3 vDir;
+    float h2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+    float vn(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h2(i),h2(i+vec2(1.0,0.0)),f.x),mix(h2(i+vec2(0.0,1.0)),h2(i+vec2(1.0,1.0)),f.x),f.y); }
+    float fbm(vec2 p){ float v=0.0,a=0.5; for(int i=0;i<3;i++){ v+=a*vn(p); p*=2.03; a*=0.5; } return v; }
     float hash(vec3 p){ p=fract(p*0.3183099+vec3(.1,.2,.3)); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
     void main(){
       vec3 d=normalize(vDir); float h=clamp(d.y,0.0,1.0);
@@ -62,6 +60,9 @@ export function createWorld(save, showErr) {
       float s=max(dot(d,sunDir),0.0);
       col+=sunCol*pow(s,14.0)*0.45*glare; col+=sunCol*pow(s,1500.0)*2.0*glare;
       col+=vec3(step(0.997,hash(floor(d*230.0)))*stars*smoothstep(0.1,0.4,d.y));
+      float az=atan(d.x,d.z);
+      if(cloud>0.0){ vec2 cuv=d.xz/(d.y+0.3)*1.1+vec2(time*0.012,0.0); float cm=smoothstep(0.5,0.78,fbm(cuv))*cloud*smoothstep(0.02,0.18,d.y); vec3 cc=mix(horizon,vec3(1.0),0.55)*(1.0-0.65*stars); col=mix(col,cc*0.9,cm*0.8); }
+      if(aurora>0.0){ float band=smoothstep(0.18,0.4,d.y)*(1.0-smoothstep(0.55,0.85,d.y)); float wv=0.5+0.5*sin(az*5.0+time*0.4+d.y*9.0); vec3 ac=mix(vec3(0.1,1.0,0.55),vec3(0.5,0.3,1.0),0.5+0.5*sin(az*2.0+time*0.2)); col+=ac*band*wv*aurora*0.7; }
       if(d.y<0.0) col=horizon*0.8;
       col+=vec3(flash*0.7,flash*0.7,flash*0.9);
       gl_FragColor=vec4(col,1.0);
@@ -74,13 +75,14 @@ export function createWorld(save, showErr) {
   const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: M.glowTex(), color: 0xffd9a0, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0.5 }));
   flare.scale.set(160, 160, 1); flare.renderOrder = -5; scene.add(flare);
   const _dir = new THREE.Vector3();
-  let envRT = null;
+  let envRT = null, garageOn = false;
+  const GARAGE_ENV = [[0, 300, 0, 300, 1.6, 1.5, 1.3], [-260, 60, 0, 200, 1.0, 1.1, 1.5], [260, 60, 0, 200, 1.5, 1.2, 0.9], [0, 60, -260, 200, 1.2, 1.2, 1.2]];
   function rebuildEnv() {
     try {
       const pm = new THREE.PMREMGenerator(renderer);
-      const es = new THREE.Scene(); es.add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), skyMat));
+      const es = new THREE.Scene(); if (!garageOn) es.add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), skyMat));
       // paneles de luz (estudio / neón) para que la pintura y el casco tengan reflejos vivos
-      for (const l of (curMap.envLights || [[0, 300, 0, 280, 1.1, 1.1, 1.1], [-200, 40, -260, 160, 1.0, 0.8, 0.6]])) {
+      for (const l of (garageOn ? GARAGE_ENV : (curMap.envLights || [[0, 300, 0, 280, 1.1, 1.1, 1.1], [-200, 40, -260, 160, 1.0, 0.8, 0.6]]))) {
         const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }); mat.color.setRGB(l[4], l[5], l[6]);
         const pl = new THREE.Mesh(new THREE.PlaneGeometry(l[3], l[3] * 0.35), mat);
         pl.position.set(l[0], l[1], l[2]); pl.lookAt(0, 0, 0); es.add(pl);
@@ -133,7 +135,10 @@ export function createWorld(save, showErr) {
   const gt = M.groundTextures();
   Object.values(gt).forEach(t => t.repeat.set(175, 175));
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshLambertMaterial({ map: gt.grass }));
-  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.3; scene.add(ground);
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.45; scene.add(ground);
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshStandardMaterial({ color: 0x1b8fd0, roughness: 0.08, metalness: 0.25, envMapIntensity: 0.8 }));
+  water.rotation.x = -Math.PI / 2; water.position.y = -1.3; water.visible = false; scene.add(water);
+  const scn = createScenery(scene, camera, gt);
 
   /* ---------- cintas de carretera ---------- */
   const SEG = 110, STEP = 4;
@@ -228,9 +233,10 @@ export function createWorld(save, showErr) {
   const trunk = inst(trunkGeo, trunkMat, 100), leaf = inst(leafGeo, leafMat, 100);
   const forestPool = makePool([trunk, leaf], 100, 8, 60, (k, g) => {
     const h = hash(g), sc = 0.8 + h;
-    roadPos(g * 8, ((g & 1) ? 1 : -1) * (12 + h * 18), tmp);
-    setM(trunk, k, tmp.x, 0, tmp.z, h * 6.28, sc, sc * (0.9 + h * 0.4), sc);
-    setM(leaf, k, tmp.x, 0, tmp.z, h * 6.28, sc, sc * (0.9 + h * 0.4), sc);
+    const lat = ((g & 1) ? 1 : -1) * (12 + h * 18);
+    roadPos(g * 8, lat, tmp); const ty = scn.terrainY(g * 8, lat);
+    setM(trunk, k, tmp.x, ty, tmp.z, h * 6.28, sc, sc * (0.9 + h * 0.4), sc);
+    setM(leaf, k, tmp.x, ty, tmp.z, h * 6.28, sc, sc * (0.9 + h * 0.4), sc);
   });
   // ciudad neón
   const winTex = M.windowTex();
@@ -243,9 +249,9 @@ export function createWorld(save, showErr) {
     const h = hash(g), h2 = hash(g + 3), side = (g & 1) ? 1 : -1;
     const w = 10 + h * 8, d = 12 + h2 * 8, hgt = 18 + h * 55, lat = side * (26 + h2 * 12);
     const s = g * 14, yaw = -Math.atan(cdx(s));
-    roadPos(s, lat, tmp); setM(builds, k, tmp.x, 0, tmp.z, yaw, w, hgt, d);
+    roadPos(s, lat, tmp); setM(builds, k, tmp.x, scn.terrainY(s, lat), tmp.z, yaw, w, hgt, d);
     roadPos(s, lat - side * (w / 2 + 0.1), tmp);
-    setM(signs, k, tmp.x, 6 + h2 * (hgt - 10), tmp.z, yaw, 0.25, 0.8, d * 0.8);
+    setM(signs, k, tmp.x, scn.terrainY(s, lat) + 6 + h2 * (hgt - 10), tmp.z, yaw, 0.25, 0.8, d * 0.8);
     const n = NEON[(g * 7 + 55) % 5 | 0] || NEON[0];
     signs.setColorAt(k, _c.setRGB(n[0], n[1], n[2]));
   });
@@ -259,10 +265,11 @@ export function createWorld(save, showErr) {
   const cactus = inst(cactusGeo, new THREE.MeshLambertMaterial({ color: 0x3f7a3a }), 80), rocks = inst(rockGeo, new THREE.MeshLambertMaterial({ color: 0x8a6a4a }), 80);
   const desertPool = makePool([cactus, rocks], 80, 10, 40, (k, g) => {
     const h = hash(g), h2 = hash(g + 9), side = (g & 1) ? 1 : -1;
-    roadPos(g * 10, side * (11 + h * 22), tmp); setM(cactus, k, tmp.x, 0, tmp.z, h * 6.28, 0.8 + h * 0.8, 0.8 + h * 0.9, 0.8 + h * 0.8);
-    roadPos(g * 10 + 5, -side * (10 + h2 * 24), tmp); setM(rocks, k, tmp.x, 0, tmp.z, h2 * 6.28, 0.8 + h2 * 2.2, 0.6 + h2 * 1.4, 0.8 + h * 2);
+    roadPos(g * 10, side * (11 + h * 22), tmp); setM(cactus, k, tmp.x, scn.terrainY(g * 10, side * (11 + h * 22)), tmp.z, h * 6.28, 0.8 + h * 0.8, 0.8 + h * 0.9, 0.8 + h * 0.8);
+    roadPos(g * 10 + 5, -side * (10 + h2 * 24), tmp); setM(rocks, k, tmp.x, scn.terrainY(g * 10 + 5, -side * (10 + h2 * 24)), tmp.z, h2 * 6.28, 0.8 + h2 * 2.2, 0.6 + h2 * 1.4, 0.8 + h * 2);
   });
   const sets = { forest: { pool: forestPool, meshes: [trunk, leaf] }, city: { pool: cityPool, meshes: [builds, signs] }, desert: { pool: desertPool, meshes: [cactus, rocks] } };
+  Object.assign(sets, scn.sets);
 
   // postes de la barrera y farolas
   const postGeo = new THREE.BoxGeometry(0.12, 0.95, 0.12); postGeo.translate(0, 0.475, 0);
@@ -363,26 +370,34 @@ export function createWorld(save, showErr) {
   snow.frustumCulled = false; snow.visible = false; scene.add(snow);
   let wTime = 0;
   function updateWeather(dt, vx, vz) {
-    const mode = curMap.weather;
-    rain.visible = mode === 1; snow.visible = mode === 2;
+    const mode = curMap.weather || 0, lines = mode === 1 || mode === 3, pts = mode === 2 || mode === 4 || mode === 5;
+    rain.visible = lines; snow.visible = pts;
     if (!mode) return;
     wTime += dt;
-    const cp = camera.position;
+    const cp = camera.position, m4 = mode === 4, m5 = mode === 5;
+    snow.material.color.set(m4 ? 0xff7a2a : 0xffffff); snow.material.size = m4 ? 0.38 : m5 ? 0.18 : 0.28;
+    snow.material.opacity = m5 ? 0.45 : 0.95; snow.material.blending = m4 ? THREE.AdditiveBlending : THREE.NormalBlending;
+    rain.material.color.set(mode === 3 ? 0xd8b070 : 0xaec8e8); rain.material.opacity = mode === 3 ? 0.35 : 0.5;
     for (let i = 0; i < WN; i++) {
       let x = wPos[i * 3], y = wPos[i * 3 + 1], z = wPos[i * 3 + 2];
-      if (mode === 1) y -= 26 * dt; else { y -= 2.4 * dt; x += Math.sin(wTime * 0.8 + i) * 0.7 * dt; }
+      if (mode === 1) y -= 26 * dt;
+      else if (mode === 3) { x += 26 * dt; y += Math.sin(wTime + i) * 0.5 * dt; }
+      else if (m4) { y += 2.2 * dt; x += Math.sin(wTime * 0.9 + i) * 0.6 * dt; }
+      else { y -= (m5 ? 0.25 : 2.4) * dt; x += Math.sin(wTime * 0.8 + i) * (m5 ? 0.4 : 0.7) * dt; }
       let rx = x - cp.x, ry = y - cp.y, rz = z - cp.z;
       if (rx > 34) rx -= 68; else if (rx < -34) rx += 68;
       if (ry < -5) ry += 26; else if (ry > 21) ry -= 26;
       if (rz > 40) rz -= 80; else if (rz < -40) rz += 80;
       x = cp.x + rx; y = cp.y + ry; z = cp.z + rz;
       wPos[i * 3] = x; wPos[i * 3 + 1] = y; wPos[i * 3 + 2] = z;
-      if (mode === 1) {
+      if (lines) {
         rainPos[i * 6] = x; rainPos[i * 6 + 1] = y; rainPos[i * 6 + 2] = z;
-        rainPos[i * 6 + 3] = x + vx * 0.028; rainPos[i * 6 + 4] = y + 26 * 0.028; rainPos[i * 6 + 5] = z + vz * 0.028;
+        if (mode === 1) { rainPos[i * 6 + 3] = x + vx * 0.028; rainPos[i * 6 + 4] = y + 26 * 0.028; rainPos[i * 6 + 5] = z + vz * 0.028; }
+        else { rainPos[i * 6 + 3] = x + vx * 0.03 + 1.6; rainPos[i * 6 + 4] = y; rainPos[i * 6 + 5] = z + vz * 0.03; }
       } else { snowPos[i * 3] = x; snowPos[i * 3 + 1] = y; snowPos[i * 3 + 2] = z; }
     }
-    if (mode === 1) rainGeo.attributes.position.needsUpdate = true; else snowGeo.attributes.position.needsUpdate = true;
+    if (mode === 1) for (let i = 0; i < 3; i++) emit(cp.x + rnd(-8, 8), 0.06, cp.z + rnd(-18, 4), rnd(-0.6, 0.6), rnd(1, 2.6), rnd(-0.6, 0.6), 0.25, 0.7, 0.8, 1.0, 9);
+    if (lines) rainGeo.attributes.position.needsUpdate = true; else snowGeo.attributes.position.needsUpdate = true;
   }
   let ltTimer = 4, lt = 0;
   function updateLightning(dt, onStrike) {
@@ -392,7 +407,7 @@ export function createWorld(save, showErr) {
     }
     if (lt > 0) lt = Math.max(0, lt - dt * 3.2);
     skyMat.uniforms.flash.value = lt;
-    hemi.intensity = curMap.hemi[2] + lt * 3;
+    hemi.intensity = garageOn ? 0.35 : curMap.hemi[2] + lt * 3;
     return lt;
   }
 
@@ -429,7 +444,7 @@ export function createWorld(save, showErr) {
   function applyMap(i) {
     const m = curMap = MAPS[i] || MAPS[0];
     const u = skyMat.uniforms;
-    u.horizon.value.set(m.horizon); u.mid.value.set(m.mid); u.top.value.set(m.top); u.sunCol.value.set(m.sunCol); u.stars.value = m.stars; u.glare.value = m.glare == null ? 0.5 : m.glare;
+    u.horizon.value.set(m.horizon); u.mid.value.set(m.mid); u.top.value.set(m.top); u.sunCol.value.set(m.sunCol); u.stars.value = m.stars; u.cloud.value = m.cloud == null ? 0.4 : m.cloud; u.aurora.value = m.aurora || 0; u.glare.value = m.glare == null ? 0.5 : m.glare;
     sunDir.set(...m.sunDir).normalize();
     scene.fog.color.set(m.fog[0]); scene.fog.near = m.fog[1]; scene.fog.far = m.fog[2];
     hemi.color.set(m.hemi[0]); hemi.groundColor.set(m.hemi[1]); hemi.intensity = m.hemi[2];
@@ -438,6 +453,7 @@ export function createWorld(save, showErr) {
     ground.material.map = gt[m.ground.tex]; ground.material.color.set(m.ground.tint); ground.material.needsUpdate = true;
     if (roadMat) { roadMat.roughness = m.road.rough; roadMat.color.set(m.road.color); roadMat.metalness = 0; roadMat.envMapIntensity = m.road.rough < 0.5 ? 0.7 : 0.3; }
     flare.material.color.set(m.sunCol);
+    ground.visible = !m.shore; water.visible = !!m.shore; scn.apply(m);
     for (const k in sets) sets[k].meshes.forEach(x => { x.visible = k === m.props; });
     leafMat.color.set(m.leaf); trunkMat.color.set(m.trunk);
     mMat[0].color.set(m.mount[0]); mMat[1].color.set(m.mount[1]);
@@ -453,7 +469,8 @@ export function createWorld(save, showErr) {
     sky.position.copy(camera.position);
     mount.position.set(camera.position.x, 0, camera.position.z);
     roadPos(0, 0, tmp);
-    ground.position.set(Math.round(bp.x / 8) * 8, -0.3, Math.round(bp.z / 8) * 8);
+    ground.position.set(Math.round(bp.x / 8) * 8, -0.45, Math.round(bp.z / 8) * 8);
+    water.position.set(bp.x, -1.3, bp.z); skyMat.uniforms.time.value = (performance.now() / 1000) % 10000;
     sun.target.position.set(bp.x, 0, bp.z);
     sun.position.set(bp.x + sunDir.x * 70, sunDir.y * 70, bp.z + sunDir.z * 70);
     sun.target.updateMatrixWorld();
@@ -463,12 +480,20 @@ export function createWorld(save, showErr) {
     flare.material.opacity = clamp(Math.pow(dp, 6) * 0.35, 0, 0.35) * (curMap.flare == null ? 1 : curMap.flare);
   }
   function updateProps(s) {
-    sets[curMap.props].pool.update(s); postPool.update(s);
+    sets[curMap.props].pool.update(s); postPool.update(s); scn.update(s, performance.now() / 1000);
     if (curMap.lamp.on) lampPool.update(s);
   }
 
+  function setGarage(on, pos, yaw) {
+    scn.setGarage(on, pos, yaw);
+    if (garageOn === on) return;
+    garageOn = on; scn.setGarageLights(on);
+    sun.visible = !on; sky.visible = !on;
+    scene.fog.near = on ? 30 : curMap.fog[1]; scene.fog.far = on ? 90 : curMap.fog[2];
+    rebuildEnv();
+  }
   return {
-    renderer, scene, camera, bikeRoot, beam, glow, setNeon, LANES, ARCH_S,
+    setGarage, renderer, scene, camera, bikeRoot, beam, glow, setNeon, LANES, ARCH_S,
     applyMap, getMap: () => curMap, applyQuality, render, updateRoad, updateProps, follow,
     emit, burst, updateParticles, updateWeather, updateLightning,
     coins, coinsReset, spawnCoins, updateCoins,
