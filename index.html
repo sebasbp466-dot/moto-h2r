@@ -44,6 +44,7 @@ canvas{display:block}
 #top{position:fixed;top:112px;right:14px;display:flex;gap:8px}
 .ib{border:2px solid #fff6;color:#fff;background:#000a;width:44px;height:40px;font-size:18px;transform:skewX(-10deg)}
 
+body.menu #hud,body.menu #ctl,body.menu #top{display:none}
 /* ---------- controles ---------- */
 #ctl{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:flex-end;padding:0 16px calc(12px + env(safe-area-inset-bottom));pointer-events:none}
 .grp{display:flex;gap:10px;align-items:flex-end}
@@ -106,7 +107,7 @@ canvas{display:block}
 .gcyc{align-self:flex-start;min-width:50%}
 </style>
 </head>
-<body>
+<body class="menu">
 <canvas id="fx"></canvas>
 <div id="vig"></div>
 <div id="flash"></div>

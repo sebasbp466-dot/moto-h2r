@@ -1,5 +1,6 @@
 import { BIKES, UPS, upCost, PAL, NAMES, MAPS, VISORS, FLAME_HEX, persist } from './data.js';
 
+const UP_FX = ['escape doble, admisión de carbono, motor con acentos', 'botellas de nitro en la cola y luz azul', 'neumáticos más anchos, discos grandes, pinzas rojas', 'barra anti-caballito y amortiguador de dirección'];
 const $ = id => document.getElementById(id);
 const hx = c => '#' + c.toString(16).padStart(6, '0');
 const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -81,11 +82,12 @@ export function createGarage(ctx) {
         const row = mk('div', 'gup');
         row.appendChild(mk('div', 'gname', u.n + '  ' + '●'.repeat(lv[i]) + '○'.repeat(5 - lv[i])));
         row.appendChild(mk('div', 'gdesc', u.d));
+        row.appendChild(mk('div', 'gstat', 'SE VE: ' + UP_FX[i]));
         const cost = upCost(lv[i]);
         const b = mk('button', 'mb', lv[i] >= 5 ? 'MÁXIMO' : 'MEJORAR  🪙 ' + cost);
         b.addEventListener('click', () => {
           if (lv[i] >= 5) return;
-          if (save.money >= cost) { save.money -= cost; lv[i]++; ctx.sfx(() => ctx.audio.buy()); changed(false); }
+          if (save.money >= cost) { save.money -= cost; lv[i]++; ctx.sfx(() => ctx.audio.buy()); changed(true); ctx.onUpgrade && ctx.onUpgrade(i); }
           else ctx.sfx(() => ctx.audio.deny());
         });
         row.appendChild(b); body.appendChild(row);

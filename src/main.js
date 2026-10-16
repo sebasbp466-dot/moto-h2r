@@ -25,7 +25,7 @@ const sfx = fn => { try { fn(); } catch (e) {} };
 let bike = null, S = stats(save);
 function rebuildBike() {
   if (bike) { bikeRoot.remove(bike.leanG); M.disposeObj(bike.leanG); }
-  bike = M.buildBike(save.bike, save.look);
+  bike = M.buildBike(save.bike, save.look, save.ups[save.bike]);
   bikeRoot.add(bike.leanG);
   world.setNeon(save.look.neon ? PAL.neon[save.look.neon] : 0);
   $('mBike').textContent = BIKES[save.bike].name;
@@ -156,7 +156,8 @@ function pauseGame() {
   input.left = input.right = input.gas = input.wheelie = input.nitro = false;
 }
 const click = fn => e => { unlock(); sfx(() => audio.click()); fn(e); };
-const garage = createGarage({ save, rebuild: () => { rebuildBike(); }, applyMap: () => { applyMapSel(); refreshMenu(); }, sfx, audio });
+const UP_ANG = [1.57, 3.14, 0.9, 3.14];
+const garage = createGarage({ save, rebuild: () => { rebuildBike(); }, onUpgrade: i => { cam.orbit = UP_ANG[i] || 0; cam.hold = 2.5; bikeRoot.updateMatrixWorld(true); const p = bikeRoot.position; world.burst(p.x, 0.7, p.z, 40, 4, 2.4, 2, 0.6, 1.0); }, applyMap: () => { applyMapSel(); refreshMenu(); }, sfx, audio });
 $('mPlay').addEventListener('click', click(() => { if (st.paused) { st.state = 'run'; st.paused = false; $('menu').style.display = 'none'; } else { resetWorld(); startRun(); } }));
 $('mNew').addEventListener('click', click(() => { resetWorld(); startRun(); }));
 $('mGarage').addEventListener('click', click(() => { st.state = 'garage'; $('menu').style.display = 'none'; $('garage').style.display = 'flex'; garage.open(); }));
@@ -221,7 +222,7 @@ function updateCamera(dt) {
   } else {
     let lx, ly, lz, ahead = 6, sx = 0, sz = 0;
     if (showroom) {
-      cam.orbit += dt * 0.4;
+      if (cam.hold > 0) cam.hold -= dt; else cam.orbit += dt * 0.4;
       const R = st.state === 'garage' ? 4.4 : 5.3;
       lx = Math.sin(cam.orbit) * R; lz = Math.cos(cam.orbit) * R; ly = 1.5 + Math.sin(cam.orbit * 0.7) * 0.3; ahead = 0;
       if (st.state === 'garage') { sx = Math.cos(cam.orbit) * 1.9; sz = -Math.sin(cam.orbit) * 1.9; } // la moto queda a la izquierda
@@ -247,7 +248,7 @@ function updateCamera(dt) {
 
 /* ---------- bucle de juego ---------- */
 const W_MILES = [[3, 100, '¡CABALLITO LARGO! +100'], [6, 300, '¡CABALLITO ÉPICO! +300'], [10, 800, '¡LEYENDA DEL CABALLITO! +800']];
-let hudT = 0, helpT = 0;
+let hudT = 0, helpT = 0, uiMode = 'menu';
 function update(rdt) {
   st.t += rdt;
   let dt = rdt;
@@ -427,6 +428,8 @@ function update(rdt) {
   audio.intensity = idle ? 0.35 : st.state === 'crash' ? 0.15 : clamp(0.3 + st.v / 80 + (st.nitroOn ? 0.3 : 0) + (st.p > 0.35 ? 0.15 : 0), 0.3, 1);
   sfx(() => audio.update({ v: st.v, thr: gas ? 1 : 0, nitro: st.nitroOn, mode: st.state }));
   st.pPrev = st.p;
+  const ui = st.state === 'run' || st.state === 'crash' ? 'play' : 'menu';
+  if (ui !== uiMode) { uiMode = ui; document.body.className = ui; }
 
   // HUD
   hudT += rdt; helpT += rdt;
