@@ -205,7 +205,7 @@ export function buildBike(style, look, ups) {
   pitchG.add(rider.group);
   const [hx, hy, hz] = def.P.hand;
   return {
-    leanG, pitchG, rW, fW, riderG: rider.group, headG: rider.headG, joints: rider.joints, knees: rider.knees,
+    tailMat: m.tail, leanG, pitchG, rW, fW, riderG: rider.group, headG: rider.headG, joints: rider.joints, knees: rider.knees,
     exhaust: new THREE.Vector3(0.2, 0.2, 0.62),
     trails: [new THREE.Vector3(-hx - 0.05, hy, hz), new THREE.Vector3(hx + 0.05, hy, hz)],
     frontWheel: new THREE.Vector3(0, -def.R + 0.1, -def.wb),

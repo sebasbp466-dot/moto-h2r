@@ -58,11 +58,12 @@ function spawn(c, ps, minAhead) {
 }
 
 /* ---------- estado e interfaz ---------- */
-const input = { left: false, right: false, gas: false, wheelie: false, nitro: false };
-const st = { s: 0, l: 1.75, v: 0, p: 0, pPrev: 0, w: 0, drift: 0, steer: 0, leanZ: 0, state: 'menu', paused: false, score: 0, crashT: 0, flip: false, side: 1, combo: 1, nitro: 0.5, nitroOn: false, ry: 0, gear: 0, t: 0, wasWant: false, flash: 0, crashMsg: '', overShown: false, runCoins: 0, banked: false, chain: 0, chainT: 0, wT: 0, wMs: 0, slow: 0, earned: 0, heartT: 0 };
+const input = { left: false, right: false, gas: false, wheelie: false, nitro: false, brake: false };
+const st = { s: 0, l: 1.75, v: 0, p: 0, pPrev: 0, w: 0, drift: 0, steer: 0, leanZ: 0, state: 'menu', paused: false, score: 0, crashT: 0, flip: false, side: 1, combo: 1, nitro: 0.5, nitroOn: false, ry: 0, gear: 0, t: 0, wasWant: false, flash: 0, crashMsg: '', overShown: false, dive: 0, lv: 0, m: { dist: 0, near: 0, wheel: 0, coins: 0, speed: 0 }, runCoins: 0, banked: false, chain: 0, chainT: 0, wT: 0, wMs: 0, slow: 0, earned: 0, heartT: 0 };
 const cam = { yaw: 0, pitch: 0, idle: 0, drag: null, orbit: 0, shake: 0, l: new THREE.Vector3(0, 3, 6) };
 const VIEWS = ['PERSECUCIÓN', 'CERCA', 'CASCO', 'FRONTAL'];
 const MV = ['NO', 'BAJA', 'MEDIA', 'ALTA'];
+const QN = ['BAJA', 'MEDIA', 'ALTA', 'ULTRA', 'ÉPICA', 'FORZA'];
 const leds = [];
 for (let i = 0; i < 12; i++) { const e = document.createElement('i'); $('leds').appendChild(e); leds.push(e); }
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _ex = new THREE.Vector3();
@@ -74,8 +75,8 @@ function bindBtn(id, key) {
   el.addEventListener('pointerdown', on);
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => el.addEventListener(t, off));
 }
-bindBtn('bL', 'left'); bindBtn('bR', 'right'); bindBtn('bG', 'gas'); bindBtn('bW', 'wheelie'); bindBtn('bN', 'nitro');
-const keyMap = { ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right', ArrowUp: 'gas', w: 'gas', ' ': 'wheelie', x: 'wheelie', Shift: 'nitro', n: 'nitro' };
+bindBtn('bL', 'left'); bindBtn('bR', 'right'); bindBtn('bG', 'gas'); bindBtn('bW', 'wheelie'); bindBtn('bN', 'nitro'); bindBtn('bB', 'brake');
+const keyMap = { ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right', ArrowUp: 'gas', w: 'gas', ' ': 'wheelie', x: 'wheelie', Shift: 'nitro', n: 'nitro', s: 'brake', ArrowDown: 'brake', b: 'brake' };
 addEventListener('keydown', e => {
   const k = keyMap[e.key]; if (k) input[k] = true;
   if (e.key === 'c') cycleView();
@@ -118,17 +119,53 @@ function applyMapSel() {
 }
 function refreshMenu() {
   setRow('mMap', mapName());
-  setRow('mQ', ['BAJA', 'MEDIA', 'ALTA'][save.q]);
+  setRow('mQ', QN[save.q] || 'MEDIA');
   setRow('mS', save.sfx ? 'SÍ' : 'NO');
   setRow('mM', MV[save.mv]);
   setRow('mCam', VIEWS[save.view]);
   setRow('mTest', audio.be ? audio.be.name : 'AUTO');
-  $('mPlay').textContent = st.paused ? 'CONTINUAR' : 'JUGAR';
-  $('mNew').style.display = st.paused ? 'block' : 'none';
-  $('mGarage').style.display = st.paused ? 'none' : 'block';
+  $('mPlayT').textContent = st.paused ? 'CONTINUAR' : 'JUGAR';
+  $('mNew').style.display = st.paused ? 'flex' : 'none';
+  $('mGarage').style.display = st.paused ? 'none' : 'flex';
   $('mMapName').textContent = mapName();
   $('mBank').textContent = save.money;
   $('mRec').textContent = save.best;
+  renderGoals();
+}
+const GOAL_POOL = [
+  { k: 'dist', t: 1500, r: 150, txt: 'Recorre 1,5 km en una partida' },
+  { k: 'near', t: 8, r: 200, txt: 'Haz 8 casi-choques' },
+  { k: 'wheel', t: 8, r: 220, txt: 'Caballito: 8 s en total' },
+  { k: 'coins', t: 20, r: 180, txt: 'Recoge 20 monedas' },
+  { k: 'speed', t: 300, r: 250, txt: 'Alcanza 300 km/h' },
+  { k: 'dist', t: 4000, r: 500, txt: 'Recorre 4 km en una partida' },
+  { k: 'near', t: 25, r: 600, txt: 'Haz 25 casi-choques' },
+  { k: 'wheel', t: 20, r: 600, txt: 'Caballito: 20 s en total' },
+];
+function checkGoals() {
+  if (st.state !== 'run') return;
+  st.m.dist = st.s; st.m.speed = Math.max(st.m.speed, st.v * 3.6);
+  save.goals.forEach((gi, slot) => {
+    const g = GOAL_POOL[gi], p = Math.min(1, (st.m[g.k] || 0) / g.t);
+    if (p > (save.gp[gi] || 0)) save.gp[gi] = p;
+    if (p >= 1) {
+      save.money += g.r; showMsg('RETO COMPLETADO +' + g.r + ' 🪙', '#7dff9a'); sfx(() => audio.buy());
+      delete save.gp[gi];
+      let n = (Math.max(...save.goals) + 1) % GOAL_POOL.length; while (save.goals.includes(n)) n = (n + 1) % GOAL_POOL.length;
+      save.goals[slot] = n; persist(save);
+    }
+  });
+}
+function renderGoals() {
+  const box = $('goals'); if (!box) return;
+  box.innerHTML = '';
+  const h = document.createElement('div'); h.className = 'goalh'; h.textContent = 'RETOS'; box.appendChild(h);
+  save.goals.forEach(gi => {
+    const g = GOAL_POOL[gi], d = document.createElement('div'); d.className = 'goal'; d.textContent = g.txt;
+    const sm = document.createElement('small'); sm.textContent = '🪙 ' + g.r; d.appendChild(sm);
+    const bar = document.createElement('div'); bar.className = 'gbar'; const i = document.createElement('i'); i.style.width = Math.round((save.gp[gi] || 0) * 100) + '%'; bar.appendChild(i); d.appendChild(bar);
+    box.appendChild(d);
+  });
 }
 function bank() {
   if (st.banked) return;
@@ -151,14 +188,14 @@ function startRun() {
   unlock();
   if (save.map === MAPN) applyMapSel();
   S = stats(save);
-  st.state = 'run'; st.paused = false; st.v = 14; st.overShown = false;
+  st.state = 'run'; st.paused = false; st.v = 14; st.overShown = false; st.m = { dist: 0, near: 0, wheel: 0, coins: 0, speed: 0 }; st.lv = 0; st.dive = 0;
   $('menu').style.display = 'none'; $('over').style.display = 'none';
   cam.yaw = 0; cam.pitch = 0;
 }
 function pauseGame() {
   if (st.state !== 'run') return;
   st.state = 'menu'; st.paused = true; refreshMenu(); $('menu').style.display = 'flex';
-  input.left = input.right = input.gas = input.wheelie = input.nitro = false;
+  input.left = input.right = input.gas = input.wheelie = input.nitro = input.brake = false;
 }
 const click = fn => e => { unlock(); sfx(() => audio.click()); fn(e); };
 const UP_ANG = [1.57, 3.14, 0.9, 3.14];
@@ -168,13 +205,15 @@ $('mNew').addEventListener('click', click(() => { resetWorld(); startRun(); }));
 $('mGarage').addEventListener('click', click(() => { st.state = 'garage'; world.setGarage(true, bikeRoot.position, bikeRoot.rotation.y); $('menu').style.display = 'none'; $('garage').style.display = 'flex'; garage.open(); }));
 $('gDone').addEventListener('click', click(() => { st.state = 'menu'; world.setGarage(false); $('garage').style.display = 'none'; $('menu').style.display = 'flex'; S = stats(save); refreshMenu(); }));
 $('mMap').addEventListener('click', click(() => { save.map = (save.map + 1) % (MAPN + 1); persist(save); applyMapSel(); refreshMenu(); }));
-$('mQ').addEventListener('click', click(() => { save.q = (save.q + 1) % 3; persist(save); world.applyQuality(); refreshMenu(); }));
+$('mQ').addEventListener('click', click(() => { save.q = (save.q + 1) % 6; persist(save); world.applyQuality(); refreshMenu(); }));
 $('mS').addEventListener('click', click(() => { save.sfx = !save.sfx; persist(save); audio.prefs(save.sfx, save.mv); refreshMenu(); }));
 $('mM').addEventListener('click', click(() => { save.mv = (save.mv + 1) % 4; persist(save); audio.prefs(save.sfx, save.mv); refreshMenu(); }));
 $('mCam').addEventListener('click', click(() => { save.view = (save.view + 1) % 4; persist(save); refreshMenu(); }));
 $('mTest').addEventListener('click', click(() => { audio.toggleBackend(); save.amode = audio.mode; persist(save); refreshMenu(); }));
 $('mRetry').addEventListener('click', click(() => { resetWorld(); startRun(); }));
 $('mHome').addEventListener('click', click(() => { resetWorld(); }));
+$('mSettings').addEventListener('click', click(() => { $('settings').style.display = 'flex'; }));
+$('mSetBack').addEventListener('click', click(() => { $('settings').style.display = 'none'; }));
 $('bP').addEventListener('click', pauseGame);
 $('bC').addEventListener('click', cycleView);
 
@@ -224,6 +263,7 @@ function updateCamera(dt) {
   }
   const spd = clamp(st.v / 85, 0, 1.4);
   const view = save.view;
+  bike.headG.visible = showroom || view !== 2;
   const fov = (view === 2 && !showroom ? 78 : 62) + spd * 16 + (st.nitroOn ? 12 : 0);
 
   if (!showroom && view === 2) { // primera persona (casco)
@@ -277,15 +317,23 @@ function update(rdt) {
     gas = input.gas || nitroOn;
     const vmax = S.vmax * (nitroOn ? 1.39 : 1), acc = S.acc * (nitroOn ? 1.77 : 1);
     if (gas) st.v += acc * (1 - st.v / vmax) * dt; else st.v = Math.max(0, st.v - 5 * dt);
+    const brake = input.brake && st.v > 0.5;
+    if (brake) {
+      st.v = Math.max(0, st.v - (30 + 16 * S.brake) * dt * (st.p > 0.3 ? 0.4 : 1));
+      if (st.v > 30 && st.t - (st.brkT || 0) > 0.3) { st.brkT = st.t; sfx(() => audio.scrape()); }
+    }
+    st.dive += ((brake ? 1 : 0) - st.dive) * (1 - Math.exp(-9 * dt));
     st.nitro = clamp(st.nitro + (nitroOn ? -0.3 / S.nit : 0.02 * S.nit) * dt, 0, 1);
     if (nitroOn && !st.nitroOn) { sfx(() => audio.nitro()); showMsg('¡NITRO!', '#7df9ff'); cam.shake = Math.max(cam.shake, 0.15); camera.fov += 14; }
     st.nitroOn = nitroOn;
 
     const target = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     st.steer += (target - st.steer) * (1 - Math.exp(-10 * dt));
-    st.l += st.steer * 6.5 * S.hand * clamp(st.v / 15, 0.2, 1.3) * dt;
+    const grip = clamp(1.3 - st.v / 150, 0.6, 1.2) * (1 - 0.45 * clamp(st.p / 0.8, 0, 1)) * (brake ? 0.9 : 1);
+    st.lv += (st.steer * 6.5 * S.hand * clamp(st.v / 15, 0.2, 1.3) * grip - st.lv) * (1 - Math.exp(-8 * dt));
+    st.l += st.lv * dt;
     if (Math.abs(st.l) > 6.6) {
-      st.l = clamp(st.l, -6.6, 6.6); st.v *= (1 - 1.5 * dt);
+      st.l = clamp(st.l, -6.6, 6.6); st.lv = 0; st.v *= (1 - 1.5 * dt);
       if (st.v > 15) {
         const bp = bikeRoot.position;
         for (let i = 0; i < 3; i++) world.emit(bp.x, 0.2, bp.z, rnd(-3, 3), rnd(1, 5), rnd(-3, 3), 0.45, 3, 1.5, 0.3);
@@ -304,6 +352,7 @@ function update(rdt) {
     if (st.p < 0) { st.p = 0; st.w = Math.max(0, st.w); }
     if (st.p > 1.25) crash(true, '¡TE VOLTEASTE!');
     if (st.p > 0.35) {
+      st.m.wheel += dt;
       st.nitro = clamp(st.nitro + 0.06 * dt, 0, 1);
       st.wT += dt;
       for (const m of W_MILES) if (st.wT > m[0] && st.wMs < m[0]) { st.wMs = m[0]; st.score += m[1]; showMsg(m[2], '#ffd400'); }
@@ -354,7 +403,7 @@ function update(rdt) {
       if (overlapS && dl < hitW) { crash(false, '¡CHOCASTE!'); break; }
       if (!c.nm && overlapS && dl < hitW + 0.9 && st.v > 20) {
         c.nm = true;
-        st.chain = st.chainT > 0 ? st.chain + 1 : 1; st.chainT = 3;
+        st.chain = st.chainT > 0 ? st.chain + 1 : 1; st.chainT = 3; st.m.near++;
         const bonus = 25 * st.chain;
         st.score += bonus; st.nitro = clamp(st.nitro + 0.12, 0, 1); st.slow = 0.15;
         showMsg('¡CERCA! x' + st.chain + '  +' + bonus, '#ffd400');
@@ -364,7 +413,7 @@ function update(rdt) {
     }
     for (const c of world.coins) {
       if (c.on && c.s > st.s - 0.6 && c.s < st.s + 2.3 && Math.abs(c.l - st.l) < 1.2) {
-        c.on = false; st.runCoins++;
+        c.on = false; st.runCoins++; st.m.coins++;
         const bp = bikeRoot.position; world.burst(bp.x, 1, bp.z, 6, 3, 3, 2.4, 0.4, 0.4);
         sfx(() => audio.coin());
       }
@@ -382,7 +431,8 @@ function update(rdt) {
   bikeRoot.position.set(tmp.x, st.state === 'garage' ? 0.04 : 0, tmp.z);
   bikeRoot.rotation.y = st.ry + yawExtra;
   bike.leanG.rotation.z = st.leanZ;
-  bike.pitchG.rotation.x = st.p;
+  bike.pitchG.rotation.x = st.p - st.dive * 0.05;
+  bike.tailMat.color.setRGB(st.dive > 0.5 ? 10 : 3, st.dive > 0.5 ? 0.3 : 0.08, 0.1);
   bike.rW.rotation.x -= st.v * dt / bike.rW.userData.R; bike.fW.rotation.x -= st.v * dt / bike.fW.userData.R;
   const sv = clamp(st.v / 85, 0, 1.3);
   bike.riderG.position.x = st.steer * 0.1; bike.riderG.rotation.z = -st.steer * 0.12;
@@ -424,7 +474,7 @@ function update(rdt) {
     c.g.rotation.y = -Math.atan(cdx(c.s));
     if (c.blink && c.s - st.s < 250) { const ph = Math.floor(st.t * 6) % 2; c.blink.r.color.setRGB(ph ? 5 : 0.3, 0.2, 0.2); c.blink.b.color.setRGB(0.3, 0.8, ph ? 0.3 : 5); }
   }
-  world.updateRoad(st.s); world.updateProps(st.s); world.follow(bikeRoot.position);
+  world.updateRoad(st.s); world.updateProps(st.s); world.follow(bikeRoot.position); world.updateTunnel(st.s);
   if (!idle) world.updateCoins(st.s, st.t); else world.updateCoins(-9999, st.t);
   world.updateWeather(rdt, -Math.sin(st.ry) * st.v, -Math.cos(st.ry) * st.v);
   const lt = world.updateLightning(rdt, () => { st.flash = Math.max(st.flash, 0.6); $('flash').style.background = '#cfe0ff'; sfx(() => { audio.crack(); audio.thunder(rnd(0.3, 1.2)); }); });
@@ -441,7 +491,7 @@ function update(rdt) {
   audio.intensity = idle ? 0.35 : st.state === 'crash' ? 0.15 : clamp(0.3 + st.v / 80 + (st.nitroOn ? 0.3 : 0) + (st.p > 0.35 ? 0.15 : 0), 0.3, 1);
   sfx(() => audio.update({ v: st.v, thr: gas ? 1 : 0, nitro: st.nitroOn, mode: st.state }));
   st.pPrev = st.p;
-  const ui = st.state === 'run' || st.state === 'crash' ? 'play' : 'menu';
+  const ui = (st.state === 'run' || st.state === 'crash' ? 'play' : 'menu') + (st.state === 'run' && save.view === 2 ? ' fpv' : '');
   if (ui !== uiMode) { uiMode = ui; document.body.className = ui; }
 
   // HUD
@@ -449,6 +499,7 @@ function update(rdt) {
   if (helpT > 0.5) { helpT = 0; if (idle) $('mHelp').textContent = 'audio: ' + audio.state + (audio.err ? ' ! ' + audio.err : '') + ' · arrastra para mover la cámara'; }
   if (hudT > 0.05) {
     hudT = 0;
+    checkGoals();
     const rp = rpmOf(st.v), on = st.state === 'menu' || st.state === 'garage' ? 0 : Math.round(rp.rpm * 12);
     $('spd').textContent = Math.round(st.v * 3.6);
     $('gear').textContent = st.v < 1 ? 'N' : rp.gear + 1;

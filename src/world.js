@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as M from './models.js';
 import { createScenery } from './scenery.js';
@@ -27,6 +28,22 @@ const SpeedShader = {
   }`
 };
 
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null }, res: { value: new THREE.Vector2(1 / 800, 1 / 400) }, contrast: { value: 1 }, sat: { value: 1 }, vig: { value: 0 }, grain: { value: 0 }, sharp: { value: 0 }, time: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 res; uniform float contrast,sat,vig,grain,sharp,time; varying vec2 vUv;
+  void main(){
+    vec3 c=texture2D(tDiffuse,vUv).rgb;
+    vec3 n=texture2D(tDiffuse,vUv+vec2(res.x,0.0)).rgb+texture2D(tDiffuse,vUv-vec2(res.x,0.0)).rgb+texture2D(tDiffuse,vUv+vec2(0.0,res.y)).rgb+texture2D(tDiffuse,vUv-vec2(0.0,res.y)).rgb;
+    c+=(c*4.0-n)*sharp;
+    float l=dot(c,vec3(0.2126,0.7152,0.0722)); c=mix(vec3(l),c,sat);
+    c=(c-0.5)*contrast+0.5;
+    c*=1.0-vig*smoothstep(0.32,0.95,distance(vUv,vec2(0.5)));
+    c+=(fract(sin(dot(vUv*vec2(1731.0,1157.0)+time,vec2(12.9898,78.233)))*43758.5453)-0.5)*grain;
+    gl_FragColor=vec4(clamp(c,0.0,1.0),1.0);
+  }`
+};
+
 export function createWorld(save, showErr) {
   const tmp = { x: 0, z: 0 };
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color(), Y = new THREE.Vector3(0, 1, 0);
@@ -37,7 +54,7 @@ export function createWorld(save, showErr) {
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.body.prepend(renderer.domElement);
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0xc77a5a, 40, 380);
@@ -75,7 +92,7 @@ export function createWorld(save, showErr) {
   const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: M.glowTex(), color: 0xffd9a0, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0.5 }));
   flare.scale.set(160, 160, 1); flare.renderOrder = -5; scene.add(flare);
   const _dir = new THREE.Vector3();
-  let envRT = null, garageOn = false;
+  let envRT = null, garageOn = false, headBase = 25, tunnelsOn = true, tAmt = 0;
   const GARAGE_ENV = [[0, 300, 0, 300, 1.6, 1.5, 1.3], [-260, 60, 0, 200, 1.0, 1.1, 1.5], [260, 60, 0, 200, 1.5, 1.2, 0.9], [0, 60, -260, 200, 1.2, 1.2, 1.2]];
   function rebuildEnv() {
     try {
@@ -100,7 +117,7 @@ export function createWorld(save, showErr) {
   scene.add(hemi, sun, sun.target);
 
   /* ---------- postprocesado ---------- */
-  let composer = null, bloom = null, speedPass = null, bloomBase = 0.6;
+  let composer = null, bloom = null, speedPass = null, gradePass = null, fxaaPass = null, bloomBase = 0.6;
   function buildComposer() {
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
@@ -109,23 +126,32 @@ export function createWorld(save, showErr) {
     speedPass = new ShaderPass(SpeedShader);
     composer.addPass(speedPass);
     composer.addPass(new OutputPass());
+    gradePass = new ShaderPass(GradeShader); composer.addPass(gradePass);
+    fxaaPass = new ShaderPass(FXAAShader); composer.addPass(fxaaPass);
   }
   function setBloom() { if (bloom) bloom.strength = bloomBase * curMap.bloom; }
+  // BAJA, MEDIA, ALTA, ULTRA, ÉPICA, FORZA (resolución, sombras, bloom, color de cine, suavizado y nitidez)
+  const QS = [{ pr: 0.8 }, { pr: 1.0, comp: 1, bl: 0.5 }, { pr: 1.5, comp: 1, bl: 0.65, sh: 1024 }, { pr: 1.75, comp: 1, bl: 0.6, sh: 2048, g: 1 }, { pr: 2, comp: 1, bl: 0.7, sh: 3072, g: 2, aa: 1 }, { pr: 2.5, comp: 1, bl: 0.75, sh: 4096, g: 3, aa: 1 }];
+  const GR = [null, [1.06, 1.08, 0.25, 0.02, 0.15], [1.09, 1.12, 0.3, 0.03, 0.25], [1.12, 1.15, 0.35, 0.035, 0.35]];
   function applyQuality() {
-    const dpr = window.devicePixelRatio || 1;
-    const pr = [Math.min(dpr, 0.8), Math.min(dpr, 1.0), Math.min(dpr, 1.5)][save.q];
-    renderer.setPixelRatio(pr);
-    renderer.setSize(innerWidth, innerHeight);
-    if (save.q >= 1) {
+    const q = QS[clamp(save.q | 0, 0, QS.length - 1)], dpr = window.devicePixelRatio || 1, pr = Math.min(dpr, q.pr);
+    renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight);
+    if (q.comp) {
       try {
         if (!composer) buildComposer();
         composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
-        bloomBase = save.q === 2 ? 0.65 : 0.5; setBloom();
+        bloomBase = q.bl; setBloom();
+        gradePass.enabled = !!q.g;
+        if (q.g) { const p = GR[q.g], u = gradePass.uniforms; u.contrast.value = p[0]; u.sat.value = p[1]; u.vig.value = p[2]; u.grain.value = p[3]; u.sharp.value = p[4]; u.res.value.set(1 / (innerWidth * pr), 1 / (innerHeight * pr)); }
+        fxaaPass.enabled = !!q.aa;
+        if (q.aa) fxaaPass.material.uniforms['resolution'].value.set(1 / (innerWidth * pr), 1 / (innerHeight * pr));
       } catch (e) { composer = null; showErr('post: ' + e.message); }
     }
-    sun.castShadow = save.q === 2;
+    sun.castShadow = !!q.sh;
+    if (q.sh && sun.shadow.mapSize.x !== q.sh) { sun.shadow.mapSize.set(q.sh, q.sh); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   }
   function render() {
+    if (gradePass && gradePass.enabled) gradePass.uniforms.time.value = (performance.now() / 1000) % 100;
     try {
       if (save.q >= 1 && composer) composer.render(); else renderer.render(scene, camera);
     } catch (e) { composer = null; showErr('render: ' + e.message); renderer.render(scene, camera); }
@@ -149,7 +175,7 @@ export function createWorld(save, showErr) {
     const n = SEG * 6;
     const g = new THREE.BufferGeometry();
     const pos = new Float32Array(n * 3), uv = new Float32Array(n * 2), nor = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { nor[i * 3] = o.nx || 0; nor[i * 3 + 1] = o.wall ? 0 : 1; }
+    for (let i = 0; i < n; i++) { nor[i * 3] = o.nx || 0; nor[i * 3 + 1] = o.ny != null ? o.ny : (o.wall ? 0 : 1); }
     const attrP = new THREE.BufferAttribute(pos, 3), attrU = new THREE.BufferAttribute(uv, 2);
     g.setAttribute('position', attrP); g.setAttribute('uv', attrU); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
     const layer = o.layer || 0;
@@ -160,7 +186,7 @@ export function createWorld(save, showErr) {
     m.frustumCulled = false; m.receiveShadow = !!o.shadow;
     scene.add(m);
     if (o.std) { mat.bumpMap = M.asphaltBump(); mat.bumpMap.repeat.set(4, 2); mat.bumpScale = 0.7; }
-    ribbons.push({ a, b, y, dash, wall: o.wall, road: !!o.std, pos, uv, attrP, attrU });
+    ribbons.push({ a, b, y, dash, wall: o.wall, tun: !!o.tun, road: !!o.std, pos, uv, attrP, attrU });
   }
   makeRibbon(-9.2, 9.2, 0.0, 0x8a8472, false, { layer: 0 });
   makeRibbon(-7.0, 7.0, 0.01, 0xffffff, false, { layer: 1, map: asphalt, shadow: true, std: true });
@@ -172,6 +198,26 @@ export function createWorld(save, showErr) {
   for (const sd of [-1, 1]) {
     makeRibbon(sd * 7.7, sd * 7.7, 0, 0x707078, false, { wall: [0, 0.5], nx: -sd, layer: 3 });
     makeRibbon(sd * 7.7, sd * 7.7, 0, 0xffffff, false, { wall: [0.5, 0.95], nx: -sd, layer: 3, map: M.railTex() });
+  }
+  // túneles: arco de concreto por dentro y montaña de tierra por fuera
+  const conc = M.concreteTex();
+  const TIN = [[-8, 0], [-8, 3.2], [-6.8, 4.6], [-4, 5.6], [0, 6], [4, 5.6], [6.8, 4.6], [8, 3.2], [8, 0]];
+  const TOUT = [[-9, 0], [-9, 4], [-8, 7], [-5, 10], [0, 11.5], [5, 10], [8, 7], [9, 4], [9, 0]];
+  for (let i = 0; i < 8; i++) {
+    const [a0, y0] = TIN[i], [a1, y1] = TIN[i + 1], dx = a1 - a0, dy = y1 - y0, L = Math.hypot(dx, dy);
+    let nx = -dy / L, ny = dx / L; if (nx * (0 - a0) + ny * (3 - y0) < 0) { nx = -nx; ny = -ny; }
+    makeRibbon(a0, a1, 0, 0xd0d0d4, false, { wall: [y0, y1], tun: true, map: conc, nx, ny, layer: 3 });
+    makeRibbon(TOUT[i][0], TOUT[i + 1][0], 0, 0x5a5044, false, { wall: [TOUT[i][1], TOUT[i + 1][1]], tun: true, layer: 3 });
+  }
+  function tunnelRange(s) { const k = Math.floor((s - 1200) / 2800), a = k * 2800 + 1200; return [a, a + 340 + hash(k * 3.1) * 260]; }
+  function inTunnel(s) { if (!tunnelsOn) return false; const r = tunnelRange(s); return s >= r[0] && s <= r[1]; }
+  function updateTunnel(s) {
+    let amt = 0;
+    if (tunnelsOn) { const r = tunnelRange(s); if (s >= r[0] - 25 && s <= r[1] + 25) amt = clamp((s - r[0] + 25) / 45, 0, 1) * clamp((r[1] - s + 25) / 45, 0, 1); }
+    tAmt = amt;
+    if (!garageOn) { sun.intensity = curMap.sunInt * (1 - 0.95 * amt); scene.fog.near = curMap.fog[1] + (10 - curMap.fog[1]) * amt; scene.fog.far = curMap.fog[2] + (140 - curMap.fog[2]) * amt; }
+    tLight.intensity = 45 * amt; headSpot.intensity = headBase + 300 * amt;
+    return amt;
   }
   const RP = [{ x: 0, z: 0 }, { x: 0, z: 0 }, { x: 0, z: 0 }, { x: 0, z: 0 }];
   const ORDER = [0, 1, 2, 1, 3, 2];
@@ -186,12 +232,13 @@ export function createWorld(save, showErr) {
       const y0 = r.wall ? r.wall[0] : r.y, y1 = r.wall ? r.wall[1] : r.y;
       for (let i = 0; i < SEG; i++) {
         const gi = base + i, s0 = gi * STEP, s1 = s0 + STEP;
-        const hide = r.dash && (gi & 1);
+        const hide = (r.dash && (gi & 1)) || (r.tun && !inTunnel(s0));
         roadPos(s0, r.a, RP[0]); roadPos(s0, r.b, RP[1]); roadPos(s1, r.a, RP[2]); roadPos(s1, r.b, RP[3]);
         for (let j = 0; j < 6; j++) {
           const c = ORDER[j];
           p[k++] = RP[c].x; p[k++] = hide ? -50 : ((c & 1) ? y1 : y0); p[k++] = RP[c].z;
           if (r.road) { uv[u++] = (((c & 1) ? r.b : r.a) + 7) / 14; uv[u++] = ((c >> 1) ? s1 : s0) / 8; }
+          else if (r.tun) { uv[u++] = (((c & 1) ? r.b : r.a) + ((c & 1) ? y1 : y0)) * 0.12; uv[u++] = ((c >> 1) ? s1 : s0) * 0.12; }
           else if (r.wall) { uv[u++] = (c & 1) ? y1 : y0; uv[u++] = ((c >> 1) ? s1 : s0) * 0.25; }
           else { uv[u++] = ((c & 1) ? r.b : r.a) * 0.25; uv[u++] = ((c >> 1) ? s1 : s0) * 0.25; }
         }
@@ -204,6 +251,7 @@ export function createWorld(save, showErr) {
   function makePool(meshes, count, step, behind, apply) {
     const ids = new Int32Array(count).fill(-99999);
     return {
+      reset() { ids.fill(-99999); },
       update(s) {
         const g0 = Math.floor((s - behind) / step);
         let dirty = false;
@@ -289,6 +337,13 @@ export function createWorld(save, showErr) {
     roadPos(s, side * 4.8, tmp); setM(pools, k, tmp.x, 0.06, tmp.z, yaw, 1, 1, 1);
   });
 
+  const tlGeo = new THREE.BoxGeometry(0.3, 0.08, 2.4), tlMat = new THREE.MeshBasicMaterial({ toneMapped: false }); tlMat.color.setRGB(5, 4.4, 3.4);
+  const tlights = inst(tlGeo, tlMat, 50);
+  const tunPool = makePool([tlights], 50, 10, 30, (k, g) => {
+    const sv = g * 10;
+    if (!inTunnel(sv)) { _m.makeScale(0, 0, 0); tlights.setMatrixAt(k, _m); return; }
+    roadPos(sv, ((g & 1) ? 1 : -1) * 2.6, tmp); setM(tlights, k, tmp.x, 5.7, tmp.z, -Math.atan(cdx(sv)), 1, 1, 1);
+  });
   // montañas
   const mount = new THREE.Group();
   const mMat = [new THREE.MeshBasicMaterial({ color: 0x3a2650, fog: false }), new THREE.MeshBasicMaterial({ color: 0x5a3358, fog: false })];
@@ -315,6 +370,10 @@ export function createWorld(save, showErr) {
 
   /* ---------- grupo de la moto, haz de luz y neón ---------- */
   const bikeRoot = new THREE.Group(); scene.add(bikeRoot);
+  const headSpot = new THREE.SpotLight(0xfff2d8, 25, 70, 0.5, 0.7, 1.5); headSpot.position.set(0, 0.78, -1.3);   // faro real
+  const headTgt = new THREE.Object3D(); headTgt.position.set(0, 0, -22); bikeRoot.add(headSpot, headTgt); headSpot.target = headTgt;
+  const fill = new THREE.DirectionalLight(0xdfe8ff, 0.5); scene.add(fill, fill.target);                       // luz de relleno para la moto
+  const tLight = new THREE.PointLight(0xffe2b8, 0, 30, 2); scene.add(tLight);                                  // luz de túnel
   const beam = new THREE.Mesh(new THREE.PlaneGeometry(6, 26), new THREE.MeshBasicMaterial({ map: M.beamTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.5, toneMapped: false, side: THREE.DoubleSide }));
   beam.rotation.x = -Math.PI / 2; beam.position.set(0, 0.06, -14); beam.renderOrder = 2; bikeRoot.add(beam);
   const glow = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 4.8), new THREE.MeshBasicMaterial({ map: M.glowTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8, toneMapped: false }));
@@ -407,7 +466,7 @@ export function createWorld(save, showErr) {
     }
     if (lt > 0) lt = Math.max(0, lt - dt * 3.2);
     skyMat.uniforms.flash.value = lt;
-    hemi.intensity = garageOn ? 0.35 : curMap.hemi[2] + lt * 3;
+    hemi.intensity = garageOn ? 0.35 : (curMap.hemi[2] + lt * 3) * (1 - 0.75 * tAmt);
     return lt;
   }
 
@@ -454,6 +513,7 @@ export function createWorld(save, showErr) {
     if (roadMat) { roadMat.roughness = m.road.rough; roadMat.color.set(m.road.color); roadMat.metalness = 0; roadMat.envMapIntensity = m.road.rough < 0.5 ? 0.7 : 0.3; }
     flare.material.color.set(m.sunCol);
     ground.visible = !m.shore; water.visible = !!m.shore; scn.apply(m);
+    tunnelsOn = m.tunnels !== false; tunPool.reset(); headBase = m.head != null ? m.head : (m.stars ? 220 : 25); headSpot.intensity = headBase;
     for (const k in sets) sets[k].meshes.forEach(x => { x.visible = k === m.props; });
     leafMat.color.set(m.leaf); trunkMat.color.set(m.trunk);
     mMat[0].color.set(m.mount[0]); mMat[1].color.set(m.mount[1]);
@@ -474,6 +534,7 @@ export function createWorld(save, showErr) {
     sun.target.position.set(bp.x, 0, bp.z);
     sun.position.set(bp.x + sunDir.x * 70, sunDir.y * 70, bp.z + sunDir.z * 70);
     sun.target.updateMatrixWorld();
+    fill.position.set(bp.x + 6, 5, bp.z + 10); fill.target.position.set(bp.x, 0.5, bp.z); fill.target.updateMatrixWorld(); tLight.position.set(bp.x, 4.6, bp.z);
     camera.getWorldDirection(_dir);
     const dp = Math.max(0, _dir.dot(sunDir));
     flare.position.copy(camera.position).addScaledVector(sunDir, 400);
@@ -482,6 +543,7 @@ export function createWorld(save, showErr) {
   function updateProps(s) {
     sets[curMap.props].pool.update(s); postPool.update(s); scn.update(s, performance.now() / 1000);
     if (curMap.lamp.on) lampPool.update(s);
+    if (tunnelsOn) tunPool.update(s);
   }
 
   function setGarage(on, pos, yaw) {
@@ -493,7 +555,7 @@ export function createWorld(save, showErr) {
     rebuildEnv();
   }
   return {
-    setGarage, renderer, scene, camera, bikeRoot, beam, glow, setNeon, LANES, ARCH_S,
+    setGarage, updateTunnel, inTunnel, renderer, scene, camera, bikeRoot, beam, glow, setNeon, LANES, ARCH_S,
     applyMap, getMap: () => curMap, applyQuality, render, updateRoad, updateProps, follow,
     emit, burst, updateParticles, updateWeather, updateLightning,
     coins, coinsReset, spawnCoins, updateCoins,

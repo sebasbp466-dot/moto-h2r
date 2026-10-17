@@ -55,36 +55,44 @@ body.menu #hud,body.menu #ctl,body.menu #top{display:none}
 #bN{border-color:var(--c);color:var(--c)}
 .cb.on{background:#fffc;color:#000;transform:skewX(-10deg) scale(.94)}
 
-/* ---------- menú ---------- */
-#menu,#over{position:fixed;inset:0;display:flex;align-items:stretch;justify-content:space-between}
-#menu{background:linear-gradient(100deg,rgba(6,6,7,.96) 0,rgba(6,6,7,.9) 44%,rgba(6,6,7,.1) 66%,rgba(6,6,7,0) 100%)}
-#menu:before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,#ffffff06 0 2px,transparent 2px 5px);pointer-events:none}
-#menu:after{content:'';position:absolute;left:0;right:0;bottom:0;height:12px;background:repeating-conic-gradient(var(--w) 0 25%,var(--k) 0 50%) 0 0/24px 24px;opacity:.9}
-.logo{position:relative;padding:16px 10px 28px 26px;display:flex;flex-direction:column;justify-content:center;max-width:56vw}
-.tag{align-self:flex-start;background:var(--y);color:#000;font-size:min(5.2vh,3.6vw);letter-spacing:.32em;padding:2px 14px 2px 10px;clip-path:polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%);font-style:italic}
-.t2{font-size:min(17vh,11.5vw);line-height:.92;font-style:italic;letter-spacing:-2px;margin-top:2px}
-.t3{font-size:min(23vh,15.5vw);line-height:.86;font-style:italic;letter-spacing:-3px;color:var(--w);-webkit-text-stroke:0;text-shadow:5px 5px 0 var(--r)}
-.t3 b{color:var(--y);font-weight:400}
-.slash{height:6px;width:min(52vw,420px);background:linear-gradient(90deg,var(--r) 0 60%,transparent 60% 64%,var(--y) 64% 82%,transparent 82% 86%,var(--w) 86%);transform:skewX(-30deg);margin:8px 0 10px}
-.spec{display:grid;grid-template-columns:auto auto;gap:2px 18px;align-self:flex-start;font-size:min(3.6vh,2.7vw);letter-spacing:2px}
-.spec span{color:var(--y)}
-.col{position:relative;width:min(44vw,340px);padding:14px 22px 26px 10px;display:flex;flex-direction:column;justify-content:center;gap:8px}
-.mb{pointer-events:auto;font-family:inherit;text-transform:uppercase;color:var(--w);background:transparent;border:2px solid #fff9;padding:9px 12px;font-size:min(5vh,3.8vw);letter-spacing:2px;text-align:left;font-style:italic;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
-.mb.big{background:var(--y);color:#000;border-color:var(--y);font-size:min(9vh,6.4vw);padding:10px 22px;display:flex;justify-content:space-between}
-.mb.big:after{content:'►'}
-.mb.mid{border-color:var(--y);color:var(--y)}
-.rows{margin-top:4px;border-top:2px solid #fff3}
-.row{pointer-events:auto;font-family:inherit;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;width:100%;color:var(--w);background:transparent;border:0;border-bottom:1px solid #fff2;padding:5px 4px;font-size:min(3.9vh,2.9vw);letter-spacing:2px}
-.row b{font-family:'Courier New',monospace;color:var(--y);font-weight:700;letter-spacing:0}
-.row:active{background:#ffd40022}
-#mHelp{font-family:'Courier New',monospace;font-size:min(2.7vh,2vw);opacity:.7;text-transform:none;margin-top:2px}
-
-#over{display:none;background:rgba(6,6,7,.86);flex-direction:column;align-items:center;justify-content:center;gap:4px}
-#ovt{font-size:min(20vh,13vw);font-style:italic;color:var(--r);text-shadow:4px 4px 0 #000;line-height:1}
-#ovs{font-size:min(8vh,6vw);color:var(--w);font-style:italic}
-#ovc{font-size:min(6vh,4.6vw);color:var(--y);margin-bottom:8px}
+/* ---------- menú estilo Forza Horizon (mosaicos simples) ---------- */
+#menu{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;text-transform:none;background:linear-gradient(180deg,rgba(0,0,0,.62) 0,rgba(0,0,0,0) 26%,rgba(0,0,0,0) 50%,rgba(0,0,0,.78) 100%)}
+#menu *,#settings *{font-family:inherit}
+.top{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 22px}
+.brand{font-size:min(3.2vh,2.5vw);letter-spacing:.24em;font-weight:600}
+.brand b{display:block;font-size:min(8vh,6vw);letter-spacing:.01em;font-weight:800;font-style:italic;line-height:1;text-transform:uppercase}
+.stats{text-align:right;font-size:min(3.8vh,2.9vw);font-weight:700}
+.stats span{display:block;opacity:.85;font-size:.78em;font-weight:600}
+#goals{position:absolute;left:22px;top:31%;width:min(44vw,340px);display:flex;flex-direction:column;gap:7px}
+.goalh{font-size:min(2.8vh,2.1vw);letter-spacing:.22em;opacity:.8;font-weight:700}
+.goal{background:rgba(10,12,16,.58);backdrop-filter:blur(8px);border-left:4px solid #fff;padding:6px 10px;font-size:min(3.1vh,2.3vw);font-weight:600}
+.goal small{float:right;opacity:.85}
+.gbar{height:5px;background:#fff3;margin-top:4px}.gbar i{display:block;height:100%;background:#fff}
+#tiles{display:flex;gap:10px;justify-content:center;padding:0 16px 14px}
+.tile{pointer-events:auto;width:min(21vw,190px);height:min(31vh,120px);border:0;color:#fff;text-align:left;background:rgba(14,16,20,.6);backdrop-filter:blur(8px);padding:9px 12px;display:flex;flex-direction:column;justify-content:space-between;font-size:min(3.8vh,2.8vw);font-weight:800;letter-spacing:.1em}
+.tile i{font-style:normal;font-size:min(7.5vh,5.6vw)}
+.tile small{display:block;font-weight:500;letter-spacing:.03em;opacity:.8;font-size:.6em;margin-top:2px}
+.tile.big{width:min(28vw,255px);background:rgba(255,255,255,.22);outline:3px solid #fff}
+.tile:active{outline:3px solid #fff;background:rgba(255,255,255,.3)}
+.tile.off{opacity:.5;pointer-events:none}
+#settings{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);text-transform:none}
+.panel{width:min(88vw,540px);max-height:94vh;overflow:auto;background:rgba(16,18,22,.9);backdrop-filter:blur(10px);padding:14px 18px}
+.panel h2{margin:0 0 6px;font-size:min(4vh,3vw);letter-spacing:.24em;font-weight:700}
+.row{pointer-events:auto;display:flex;justify-content:space-between;align-items:center;width:100%;color:#fff;background:transparent;border:0;border-bottom:1px solid #fff2;padding:7px 4px;font-size:min(4vh,3vw);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.row b{font-weight:800;color:#fff;opacity:.9}
+.row:active{background:#ffffff22}
+#mHelp{font-family:'Courier New',monospace;font-size:min(2.6vh,1.9vw);opacity:.65;margin:6px 0 2px;word-break:break-word}
+.mb{pointer-events:auto;font-family:inherit;border:2px solid #fff9;background:rgba(14,16,20,.65);color:#fff;padding:9px 16px;font-size:min(4vh,3vw);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.mb.big{background:#fff;color:#101114;border-color:#fff}
+.mb.mid{border-color:#fff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#over{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(6,6,8,.82);font-family:'Segoe UI',Roboto,Arial,sans-serif}
+#ovt{font-size:min(17vh,12vw);font-style:italic;font-weight:800;color:#fff;line-height:1;text-transform:uppercase}
+#ovs{font-size:min(7vh,5.4vw);font-weight:700}
+#ovc{font-size:min(5.5vh,4.2vw);margin-bottom:8px;opacity:.9}
 .ovb{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:min(84vw,560px)}
-
+#visor{position:fixed;inset:0;pointer-events:none;display:none;background:linear-gradient(#000d 0,#0000 14%,#0000 80%,#000e 100%),radial-gradient(ellipse at center,#0000 55%,#0009 100%)}
+body.fpv #visor{display:block}
 /* ---------- garaje ---------- */
 #garage{position:fixed;top:0;right:0;bottom:0;width:min(60vw,570px);display:none;flex-direction:column;gap:6px;padding:8px 12px 10px 54px;background:linear-gradient(90deg,transparent 0,rgba(8,8,9,.96) 11%);clip-path:polygon(40px 0,100% 0,100% 100%,0 100%)}
 #gTop{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -105,11 +113,24 @@ body.menu #hud,body.menu #ctl,body.menu #top{display:none}
 .sw{pointer-events:auto;width:min(8vh,6vw);height:min(6.4vh,5vw);border:2px solid #fff4;color:#fff;font-size:15px;padding:0;transform:skewX(-12deg)}
 .sw.sel{border-color:#fff;box-shadow:0 0 0 2px #000,0 0 0 4px var(--y)}
 .gcyc{align-self:flex-start;min-width:50%}
+
+/* ---------- tablero limpio (velocidad a la derecha, puntos a la izquierda) ---------- */
+:root{--y:#fff}
+#dash{left:auto;right:14px}
+#spd{font-style:normal;font-weight:800;font-size:56px}
+#spdu{color:#fff;opacity:.8}
+#gear{border-color:#fff;color:#fff;transform:none;border-radius:4px}
+#leds{left:auto;right:14px}
+#sc{right:auto;left:14px;text-align:left}
+#scl,#coins{color:#fff}
+#top{top:108px;right:auto;left:14px}
+#bB{border-color:#ff6a6a;color:#ff9a9a}
 </style>
 </head>
 <body class="menu">
 <canvas id="fx"></canvas>
 <div id="vig"></div>
+<div id="visor"></div>
 <div id="flash"></div>
 <div id="hud">
   <div id="dash"><div id="spd">0</div><div id="spdu">KM/H</div><div id="gear">N</div></div>
@@ -125,36 +146,35 @@ body.menu #hud,body.menu #ctl,body.menu #top{display:none}
 <div id="top"><button id="bC" class="ib">📷</button><button id="bP" class="ib">II</button></div>
 <div id="ctl">
   <div class="grp"><button id="bL" class="cb">◀</button><button id="bR" class="cb">▶</button></div>
-  <div class="grp"><button id="bN" class="cb wide">NITRO</button><button id="bW" class="cb wide">CABALLITO</button><button id="bG" class="cb wide">GAS</button></div>
+  <div class="grp"><button id="bB" class="cb wide">FRENO</button><button id="bN" class="cb wide">NITRO</button><button id="bW" class="cb wide">CABALLITO</button><button id="bG" class="cb wide">GAS</button></div>
 </div>
 
 <div id="menu">
-  <div class="logo">
-    <div class="tag">MOTO PIRUETA</div>
-    <div class="t3">BRICE<b>Ñ</b>O</div>
-    <div class="slash"></div>
-    <div class="spec mono">
-      <div>MÁQUINA</div><div><span id="mBike">NINJA H2R</span></div>
-      <div>MAPA</div><div><span id="mMapName">ATARDECER</span></div>
-      <div>BANCO</div><div><span id="mBank">0</span></div>
-      <div>RÉCORD</div><div><span id="mRec">0</span></div>
-    </div>
+  <div class="top">
+    <div class="brand">MOTO PIRUETA<b>BRICEÑO</b></div>
+    <div class="stats">🪙 <span id="mBank" style="display:inline;opacity:1;font-size:1em">0</span>
+      <span>RÉCORD <b id="mRec">0</b></span><span id="mBike">NINJA H2R</span><span id="mMapName" style="display:none"></span></div>
   </div>
-  <div class="col">
-    <button id="mPlay" class="mb big">JUGAR</button>
-    <button id="mGarage" class="mb mid">GARAJE · MEJORAS · ESTILO</button>
-    <button id="mNew" class="mb" style="display:none">NUEVA PARTIDA</button>
-    <div class="rows">
-      <button id="mMap" class="row">MAPA<b>-</b></button>
-      <button id="mCam" class="row">CÁMARA<b>-</b></button>
-      <button id="mQ" class="row">CALIDAD<b>-</b></button>
-      <button id="mS" class="row">SONIDO<b>-</b></button>
-      <button id="mM" class="row">MÚSICA<b>-</b></button>
-      <button id="mTest" class="row">PROBAR AUDIO<b>-</b></button>
-    </div>
-    <div id="mHelp">arrastra la pantalla para mover la cámara</div>
+  <div id="goals"></div>
+  <div id="tiles">
+    <button id="mPlay" class="tile big"><i>🏍️</i><span id="mPlayT">JUGAR</span></button>
+    <button id="mGarage" class="tile"><i>🔧</i><span>GARAJE<small>mejoras y estilo</small></span></button>
+    <button id="mSettings" class="tile"><i>⚙️</i><span>AJUSTES<small>mapa · cámara · gráficos</small></span></button>
+    <button id="mNew" class="tile" style="display:none"><i>↺</i><span>NUEVA PARTIDA</span></button>
+    <button id="mSoon" class="tile off"><i>🗺️</i><span>MAPA ABIERTO<small>próximamente</small></span></button>
   </div>
 </div>
+<div id="settings"><div class="panel">
+  <h2>AJUSTES</h2>
+  <button id="mMap" class="row">MAPA<b>-</b></button>
+  <button id="mCam" class="row">CÁMARA<b>-</b></button>
+  <button id="mQ" class="row">GRÁFICOS<b>-</b></button>
+  <button id="mS" class="row">SONIDO<b>-</b></button>
+  <button id="mM" class="row">MÚSICA<b>-</b></button>
+  <button id="mTest" class="row">PROBAR AUDIO<b>-</b></button>
+  <div id="mHelp">audio</div>
+  <button id="mSetBack" class="mb big" style="width:100%;margin-top:8px">LISTO</button>
+</div></div>
 
 <div id="garage">
   <div id="gTop"><div id="gMoney">0</div><button id="gDone" class="mb mid" style="padding:6px 16px">LISTO</button></div>
