@@ -13,7 +13,7 @@ import { MAPS } from './data.js';
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 export const rnd = (a, b) => a + Math.random() * (b - a);
 
-import { cx, cdx, cddx, roadPos } from './road.js';
+import { cx, cdx, cddx, roadPos, ixDist } from './road.js';
 export { cx, cdx, cddx, roadPos };
 
 const SpeedShader = {
@@ -64,12 +64,12 @@ export function createWorld(save, showErr) {
   const sunDir = new THREE.Vector3(-0.3, 0.2, -1).normalize();
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { sunDir: { value: sunDir }, horizon: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, top: { value: new THREE.Color() }, sunCol: { value: new THREE.Color() }, stars: { value: 0 }, flash: { value: 0 }, glare: { value: 0.5 }, cloud: { value: 0.4 }, time: { value: 0 }, aurora: { value: 0 } },
+    uniforms: { sunDir: { value: sunDir }, horizon: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, top: { value: new THREE.Color() }, sunCol: { value: new THREE.Color() }, stars: { value: 0 }, flash: { value: 0 }, glare: { value: 0.5 }, cloud: { value: 0.4 }, time: { value: 0 }, aurora: { value: 0 }, cloudOct: { value: 4 } },
     vertexShader: 'varying vec3 vDir; void main(){ vDir=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-    fragmentShader: `uniform vec3 sunDir,horizon,mid,top,sunCol; uniform float stars,flash,glare,cloud,time,aurora; varying vec3 vDir;
+    fragmentShader: `uniform vec3 sunDir,horizon,mid,top,sunCol; uniform float stars,flash,glare,cloud,time,aurora,cloudOct; varying vec3 vDir;
     float h2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
     float vn(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h2(i),h2(i+vec2(1.0,0.0)),f.x),mix(h2(i+vec2(0.0,1.0)),h2(i+vec2(1.0,1.0)),f.x),f.y); }
-    float fbm(vec2 p){ float v=0.0,a=0.5; for(int i=0;i<3;i++){ v+=a*vn(p); p*=2.03; a*=0.5; } return v; }
+    float fbm(vec2 p){ float v=0.0,a=0.5; for(int i=0;i<5;i++){ if(float(i)>=cloudOct) break; v+=a*vn(p); p*=2.03; a*=0.5; } return v; }
     float hash(vec3 p){ p=fract(p*0.3183099+vec3(.1,.2,.3)); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
     void main(){
       vec3 d=normalize(vDir); float h=clamp(d.y,0.0,1.0);
@@ -78,7 +78,7 @@ export function createWorld(save, showErr) {
       col+=sunCol*pow(s,14.0)*0.45*glare; col+=sunCol*pow(s,1500.0)*2.0*glare;
       col+=vec3(step(0.997,hash(floor(d*230.0)))*stars*smoothstep(0.1,0.4,d.y));
       float az=atan(d.x,d.z);
-      if(cloud>0.0){ vec2 cuv=d.xz/(d.y+0.3)*1.1+vec2(time*0.012,0.0); float cm=smoothstep(0.5,0.78,fbm(cuv))*cloud*smoothstep(0.02,0.18,d.y); vec3 cc=mix(horizon,vec3(1.0),0.55)*(1.0-0.65*stars); col=mix(col,cc*0.9,cm*0.8); }
+      if(cloud>0.0 && cloudOct>0.5){ vec2 cuv=d.xz/(d.y+0.3)*1.1+vec2(time*0.012,0.0); float cm=smoothstep(0.5,0.78,fbm(cuv))*cloud*smoothstep(0.02,0.18,d.y); vec3 cc=mix(horizon,vec3(1.0),0.55)*(1.0-0.65*stars); col=mix(col,cc*0.9,cm*0.8); }
       if(aurora>0.0){ float band=smoothstep(0.18,0.4,d.y)*(1.0-smoothstep(0.55,0.85,d.y)); float wv=0.5+0.5*sin(az*5.0+time*0.4+d.y*9.0); vec3 ac=mix(vec3(0.1,1.0,0.55),vec3(0.5,0.3,1.0),0.5+0.5*sin(az*2.0+time*0.2)); col+=ac*band*wv*aurora*0.7; }
       if(d.y<0.0) col=horizon*0.8;
       col+=vec3(flash*0.7,flash*0.7,flash*0.9);
@@ -92,7 +92,8 @@ export function createWorld(save, showErr) {
   const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: M.glowTex(), color: 0xffd9a0, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0.5 }));
   flare.scale.set(160, 160, 1); flare.renderOrder = -5; scene.add(flare);
   const _dir = new THREE.Vector3();
-  let envRT = null, garageOn = false, headBase = 25, tunnelsOn = true, tAmt = 0;
+  let envRT = null, garageOn = false, headBase = 25, tunnelsOn = true, tAmt = 0, nightAmt = 0, lastBucket = -1, tod = Math.random(), azim = Math.random() * 6.283, todAcc = 0, dens = 1;
+  const base = { sunInt: 1.5, fogN: 40, fogF: 380, hemi: 0.9 };
   const GARAGE_ENV = [[0, 300, 0, 300, 1.6, 1.5, 1.3], [-260, 60, 0, 200, 1.0, 1.1, 1.5], [260, 60, 0, 200, 1.5, 1.2, 0.9], [0, 60, -260, 200, 1.2, 1.2, 1.2]];
   function rebuildEnv() {
     try {
@@ -130,26 +131,47 @@ export function createWorld(save, showErr) {
     fxaaPass = new ShaderPass(FXAAShader); composer.addPass(fxaaPass);
   }
   function setBloom() { if (bloom) bloom.strength = bloomBase * curMap.bloom; }
-  // BAJA, MEDIA, ALTA, ULTRA, ÉPICA, FORZA (resolución, sombras, bloom, color de cine, suavizado y nitidez)
-  const QS = [{ pr: 0.8 }, { pr: 1.0, comp: 1, bl: 0.5 }, { pr: 1.5, comp: 1, bl: 0.65, sh: 1024 }, { pr: 1.75, comp: 1, bl: 0.6, sh: 2048, g: 1 }, { pr: 2, comp: 1, bl: 0.7, sh: 3072, g: 2, aa: 1 }, { pr: 2.5, comp: 1, bl: 0.75, sh: 4096, g: 3, aa: 1 }];
+  // BAJA, MEDIA, ALTA, ULTRA, ÉPICA, FORZA. Cada nivel añade cosas que se ven: sombras, nubes, vegetación, barniz, filtros, color de cine...
+  const QS = [
+    { pr: 0.75, cl: 0, dens: 0.2 },
+    { pr: 0.9, comp: 1, bl: 0.45, cl: 2, dens: 0.35 },
+    { pr: 1.1, comp: 1, bl: 0.55, sh: 1024, cl: 3, dens: 0.55 },
+    { pr: 1.35, comp: 1, bl: 0.6, sh: 2048, cl: 4, dens: 0.8, g: 1, aniso: 4 },
+    { pr: 1.55, comp: 1, bl: 0.65, sh: 3072, cl: 5, dens: 1, g: 2, aa: 1, aniso: 8, tree: 1 },
+    { pr: 1.8, comp: 1, bl: 0.7, sh: 4096, cl: 5, dens: 1, g: 3, aa: 1, aniso: 16, tree: 1 },
+  ];
   const GR = [null, [1.06, 1.08, 0.25, 0.02, 0.15], [1.09, 1.12, 0.3, 0.03, 0.25], [1.12, 1.15, 0.35, 0.035, 0.35]];
-  function applyQuality() {
-    const q = QS[clamp(save.q | 0, 0, QS.length - 1)], dpr = window.devicePixelRatio || 1, pr = Math.min(dpr, q.pr);
+  let scale = 1, curQ = QS[1], degraded = false;
+  function applyRes() {
+    const dpr = window.devicePixelRatio || 1, pr = Math.min(dpr, curQ.pr) * scale;
     renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight);
+    if (composer) {
+      composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
+      if (gradePass) gradePass.uniforms.res.value.set(1 / (innerWidth * pr), 1 / (innerHeight * pr));
+      if (fxaaPass) fxaaPass.material.uniforms['resolution'].value.set(1 / (innerWidth * pr), 1 / (innerHeight * pr));
+    }
+  }
+  function applyQuality() {
+    const q = curQ = QS[clamp(save.q | 0, 0, QS.length - 1)];
     if (q.comp) {
       try {
         if (!composer) buildComposer();
-        composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
-        bloomBase = q.bl; setBloom();
-        gradePass.enabled = !!q.g;
-        if (q.g) { const p = GR[q.g], u = gradePass.uniforms; u.contrast.value = p[0]; u.sat.value = p[1]; u.vig.value = p[2]; u.grain.value = p[3]; u.sharp.value = p[4]; u.res.value.set(1 / (innerWidth * pr), 1 / (innerHeight * pr)); }
-        fxaaPass.enabled = !!q.aa;
-        if (q.aa) fxaaPass.material.uniforms['resolution'].value.set(1 / (innerWidth * pr), 1 / (innerHeight * pr));
+        bloomBase = q.bl; setBloom(); bloom.enabled = !degraded;
+        gradePass.enabled = !!q.g && !degraded;
+        if (q.g) { const p = GR[q.g], u = gradePass.uniforms; u.contrast.value = p[0]; u.sat.value = p[1]; u.vig.value = p[2]; u.grain.value = p[3]; u.sharp.value = p[4]; }
+        fxaaPass.enabled = !!q.aa && !degraded;
       } catch (e) { composer = null; showErr('post: ' + e.message); }
     }
-    sun.castShadow = !!q.sh;
+    applyRes();
+    sun.castShadow = !!q.sh && !degraded;
     if (q.sh && sun.shadow.mapSize.x !== q.sh) { sun.shadow.mapSize.set(q.sh, q.sh); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+    trunk.castShadow = leaf.castShadow = !!q.tree && !degraded; poles.castShadow = !!q.tree && !degraded;
+    skyMat.uniforms.cloudOct.value = degraded ? 0 : (q.cl || 0);
+    dens = q.dens == null ? 1 : q.dens; forestPool.reset(); scn.setDensity(dens);
+    [asphalt, ...Object.values(gt)].forEach(t => { t.anisotropy = q.aniso || 1; t.needsUpdate = true; });
   }
+  function setScale(f) { if (Math.abs(f - scale) < 0.01) return; scale = f; applyRes(); }
+  function setDegraded(b) { if (degraded === b) return; degraded = b; applyQuality(); }
   function render() {
     if (gradePass && gradePass.enabled) gradePass.uniforms.time.value = (performance.now() / 1000) % 100;
     try {
@@ -209,14 +231,16 @@ export function createWorld(save, showErr) {
     makeRibbon(a0, a1, 0, 0xd0d0d4, false, { wall: [y0, y1], tun: true, map: conc, nx, ny, layer: 3 });
     makeRibbon(TOUT[i][0], TOUT[i + 1][0], 0, 0x5a5044, false, { wall: [TOUT[i][1], TOUT[i + 1][1]], tun: true, layer: 3 });
   }
+  function tunnelOverlap(sA, sB) { const k = Math.floor((sA - 1200) / 2800); for (const kk of [k, k + 1]) { const a = kk * 2800 + 1200, b = a + 340 + hash(kk * 3.1) * 260; if (a < sB && b > sA) return true; } return false; }
   function tunnelRange(s) { const k = Math.floor((s - 1200) / 2800), a = k * 2800 + 1200; return [a, a + 340 + hash(k * 3.1) * 260]; }
   function inTunnel(s) { if (!tunnelsOn) return false; const r = tunnelRange(s); return s >= r[0] && s <= r[1]; }
   function updateTunnel(s) {
     let amt = 0;
     if (tunnelsOn) { const r = tunnelRange(s); if (s >= r[0] - 25 && s <= r[1] + 25) amt = clamp((s - r[0] + 25) / 45, 0, 1) * clamp((r[1] - s + 25) / 45, 0, 1); }
     tAmt = amt;
-    if (!garageOn) { sun.intensity = curMap.sunInt * (1 - 0.95 * amt); scene.fog.near = curMap.fog[1] + (10 - curMap.fog[1]) * amt; scene.fog.far = curMap.fog[2] + (140 - curMap.fog[2]) * amt; }
-    tLight.intensity = 45 * amt; headSpot.intensity = headBase + 300 * amt;
+    if (!garageOn) { sun.intensity = base.sunInt * (1 - 0.95 * amt); scene.fog.near = base.fogN + (10 - base.fogN) * amt; scene.fog.far = base.fogF + (140 - base.fogF) * amt; }
+    tLight.intensity = 45 * amt; tLight.visible = amt > 0.01;
+    headSpot.intensity = headBase + 300 * amt; headSpot.visible = headBase >= 60 || amt > 0.02;
     return amt;
   }
   const RP = [{ x: 0, z: 0 }, { x: 0, z: 0 }, { x: 0, z: 0 }, { x: 0, z: 0 }];
@@ -226,13 +250,15 @@ export function createWorld(save, showErr) {
     const base = Math.floor(s / STEP) - 8;
     if (base === lastBase) return;
     lastBase = base;
+    const tunNear = tunnelsOn && tunnelOverlap(base * STEP, (base + SEG) * STEP);
     for (const r of ribbons) {
+      if (r.tun) { if (!tunNear && !r.wasTun) continue; r.wasTun = tunNear; }
       const p = r.pos, uv = r.uv;
       let k = 0, u = 0;
       const y0 = r.wall ? r.wall[0] : r.y, y1 = r.wall ? r.wall[1] : r.y;
       for (let i = 0; i < SEG; i++) {
         const gi = base + i, s0 = gi * STEP, s1 = s0 + STEP;
-        const hide = (r.dash && (gi & 1)) || (r.tun && !inTunnel(s0));
+        const hide = (r.dash && (gi & 1)) || (r.tun && !inTunnel(s0)) || (r.wall && !r.tun && ixDist(s0) < 9);
         roadPos(s0, r.a, RP[0]); roadPos(s0, r.b, RP[1]); roadPos(s1, r.a, RP[2]); roadPos(s1, r.b, RP[3]);
         for (let j = 0; j < 6; j++) {
           const c = ORDER[j];
@@ -281,6 +307,7 @@ export function createWorld(save, showErr) {
   const trunk = inst(trunkGeo, trunkMat, 100), leaf = inst(leafGeo, leafMat, 100);
   const forestPool = makePool([trunk, leaf], 100, 8, 60, (k, g) => {
     const h = hash(g), sc = 0.8 + h;
+    if (hash(g * 1.3) > dens || ixDist(g * 8) < 16) { _m.makeScale(0, 0, 0); trunk.setMatrixAt(k, _m); leaf.setMatrixAt(k, _m); return; }
     const lat = ((g & 1) ? 1 : -1) * (12 + h * 18);
     roadPos(g * 8, lat, tmp); const ty = scn.terrainY(g * 8, lat);
     setM(trunk, k, tmp.x, ty, tmp.z, h * 6.28, sc, sc * (0.9 + h * 0.4), sc);
@@ -323,6 +350,7 @@ export function createWorld(save, showErr) {
   const postGeo = new THREE.BoxGeometry(0.12, 0.95, 0.12); postGeo.translate(0, 0.475, 0);
   const posts = inst(postGeo, new THREE.MeshLambertMaterial({ color: 0x555a60 }), 120);
   const postPool = makePool([posts], 120, 8, 20, (k, g) => {
+    if (ixDist(g * 8) < 9) { _m.makeScale(0, 0, 0); posts.setMatrixAt(k, _m); return; }
     roadPos(g * 8, ((g & 1) ? 1 : -1) * 7.8, tmp); setM(posts, k, tmp.x, 0, tmp.z, -Math.atan(cdx(g * 8)), 1, 1, 1);
   });
   const poleGeo = new THREE.CylinderGeometry(0.1, 0.14, 7.5, 6); poleGeo.translate(0, 3.75, 0);
@@ -466,7 +494,7 @@ export function createWorld(save, showErr) {
     }
     if (lt > 0) lt = Math.max(0, lt - dt * 3.2);
     skyMat.uniforms.flash.value = lt;
-    hemi.intensity = garageOn ? 0.35 : (curMap.hemi[2] + lt * 3) * (1 - 0.75 * tAmt);
+    hemi.intensity = garageOn ? 0.35 : (base.hemi + lt * 3) * (1 - 0.75 * tAmt);
     return lt;
   }
 
@@ -500,6 +528,47 @@ export function createWorld(save, showErr) {
   }
 
   /* ---------- aplicar mapa ---------- */
+  /* ---------- ciclo de día y noche: el sol sale por sitios aleatorios ---------- */
+  const TK = [
+    { e: -0.35, h: 0x1a2a4a, m: 0x0e1a3a, t: 0x03061a, sc: 0xaac4ff, si: 0.6, hs: 0x7a8ac8, hg: 0x2a3050, hi: 1.0, fog: 0x16223e, ex: 1.3 },
+    { e: -0.08, h: 0xff8a4a, m: 0xd8508a, t: 0x2a2f6a, sc: 0xffa070, si: 0.9, hs: 0xffc8a0, hg: 0x3a2a40, hi: 0.85, fog: 0xb87060, ex: 1.0 },
+    { e: 0.2, h: 0xffb066, m: 0xf0907a, t: 0x3a64b4, sc: 0xffd2a0, si: 1.4, hs: 0xffe0c0, hg: 0x6a5a40, hi: 0.85, fog: 0xd8a888, ex: 0.9 },
+    { e: 0.55, h: 0xcfe6ff, m: 0x8fc4ff, t: 0x2f78d8, sc: 0xfff4e0, si: 1.8, hs: 0xdff0ff, hg: 0x7a8a60, hi: 0.85, fog: 0xbcd6ec, ex: 0.82 },
+  ];
+  const _ca = new THREE.Color(), _cb = new THREE.Color();
+  const lerpHex = (a, b, f, out) => { _ca.setHex(a); _cb.setHex(b); return out.copy(_ca).lerp(_cb, f); };
+  function updateTime(force) {
+    const m = curMap;
+    if (!m || !m.tod || garageOn) return;
+    const e = -Math.cos(tod * 6.2832), E = Math.asin(clamp(e, -1, 1)) * 0.95, dayDir = e >= -0.05;
+    const el = dayDir ? Math.max(E, 0.05) : Math.max(-E, 0.12), az = dayDir ? azim : azim + Math.PI;
+    sunDir.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
+    let i = 0; while (i < TK.length - 2 && e > TK[i + 1].e) i++;
+    const A = TK[i], B = TK[i + 1], f = clamp((e - A.e) / (B.e - A.e), 0, 1), ov = m.overcast || 0, u = skyMat.uniforms;
+    const gray = c => { if (ov) c.lerp(_cb.setHex(0x6c7684), ov * 0.65); };
+    lerpHex(A.h, B.h, f, u.horizon.value); gray(u.horizon.value);
+    lerpHex(A.m, B.m, f, u.mid.value); gray(u.mid.value);
+    lerpHex(A.t, B.t, f, u.top.value); gray(u.top.value);
+    lerpHex(A.sc, B.sc, f, u.sunCol.value); sun.color.copy(u.sunCol.value); flare.material.color.copy(u.sunCol.value);
+    base.sunInt = (A.si + (B.si - A.si) * f) * (1 - 0.55 * ov);
+    lerpHex(A.hs, B.hs, f, hemi.color); lerpHex(A.hg, B.hg, f, hemi.groundColor);
+    base.hemi = A.hi + (B.hi - A.hi) * f;
+    lerpHex(A.fog, B.fog, f, scene.fog.color); if (ov) scene.fog.color.lerp(_cb.setHex(0x5a6470), ov * 0.5);
+    renderer.toneMappingExposure = (A.ex + (B.ex - A.ex) * f) * (m.exposure / 0.9);
+    nightAmt = clamp((0.05 - e) / 0.3, 0, 1);
+    u.stars.value = nightAmt; u.glare.value = (m.glare == null ? 0.5 : m.glare) * (1 - nightAmt * 0.5);
+    const lk = 0.15 + 0.85 * nightAmt; lampMat.color.setRGB(m.lamp.col[0] * lk, m.lamp.col[1] * lk, m.lamp.col[2] * lk);
+    pools.visible = m.lamp.on && (m.lamp.pool || nightAmt > 0.3);
+    scn.setNight(nightAmt);
+    headBase = m.head != null ? m.head * (0.4 + 0.6 * nightAmt) : 25 + 195 * nightAmt;
+    beam.material.opacity = m.beam * (0.5 + 0.5 * nightAmt);
+    const bk = e < -0.2 ? 0 : e < 0.12 ? 1 : e < 0.38 ? 2 : 3;
+    if (bk !== lastBucket) { const first = lastBucket < 0; lastBucket = bk; if (!first && !force) rebuildEnv(); }
+  }
+  function advanceTime(dt) { tod = (tod + dt / 420) % 1; todAcc += dt; if (todAcc > 0.25) { todAcc = 0; updateTime(false); } }
+  function randomizeTime() { tod = Math.random(); azim = Math.random() * 6.283; lastBucket = -1; updateTime(true); if (curMap && curMap.tod) rebuildEnv(); }
+  function getClock() { const h = tod * 24, hh = Math.floor(h), mm = Math.floor((h - hh) * 60); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); }
+
   function applyMap(i) {
     const m = curMap = MAPS[i] || MAPS[0];
     const u = skyMat.uniforms;
@@ -508,6 +577,7 @@ export function createWorld(save, showErr) {
     scene.fog.color.set(m.fog[0]); scene.fog.near = m.fog[1]; scene.fog.far = m.fog[2];
     hemi.color.set(m.hemi[0]); hemi.groundColor.set(m.hemi[1]); hemi.intensity = m.hemi[2];
     sun.color.set(m.sunCol); sun.intensity = m.sunInt;
+    base.sunInt = m.sunInt; base.fogN = m.fog[1]; base.fogF = m.fog[2]; base.hemi = m.hemi[2]; nightAmt = m.stars ? 1 : 0;
     renderer.toneMappingExposure = m.exposure;
     ground.material.map = gt[m.ground.tex]; ground.material.color.set(m.ground.tint); ground.material.needsUpdate = true;
     if (roadMat) { roadMat.roughness = m.road.rough; roadMat.color.set(m.road.color); roadMat.metalness = 0; roadMat.envMapIntensity = m.road.rough < 0.5 ? 0.7 : 0.3; }
@@ -522,6 +592,7 @@ export function createWorld(save, showErr) {
     glowMat.color.setRGB(m.lamp.col[0] * 0.25, m.lamp.col[1] * 0.25, m.lamp.col[2] * 0.25);
     beam.material.opacity = m.beam;
     setBloom();
+    lastBucket = -1; if (m.tod) updateTime(true);
     rebuildEnv();
   }
 
@@ -538,7 +609,7 @@ export function createWorld(save, showErr) {
     camera.getWorldDirection(_dir);
     const dp = Math.max(0, _dir.dot(sunDir));
     flare.position.copy(camera.position).addScaledVector(sunDir, 400);
-    flare.material.opacity = clamp(Math.pow(dp, 6) * 0.35, 0, 0.35) * (curMap.flare == null ? 1 : curMap.flare);
+    flare.material.opacity = clamp(Math.pow(dp, 6) * 0.35, 0, 0.35) * (curMap.flare == null ? 1 : curMap.flare) * (1 - nightAmt * 0.7);
   }
   function updateProps(s) {
     sets[curMap.props].pool.update(s); postPool.update(s); scn.update(s, performance.now() / 1000);
@@ -551,11 +622,11 @@ export function createWorld(save, showErr) {
     if (garageOn === on) return;
     garageOn = on; scn.setGarageLights(on);
     sun.visible = !on; sky.visible = !on;
-    scene.fog.near = on ? 30 : curMap.fog[1]; scene.fog.far = on ? 90 : curMap.fog[2];
+    scene.fog.near = on ? 30 : base.fogN; scene.fog.far = on ? 90 : base.fogF;
     rebuildEnv();
   }
   return {
-    setGarage, updateTunnel, inTunnel, renderer, scene, camera, bikeRoot, beam, glow, setNeon, LANES, ARCH_S,
+    setGarage, updateTunnel, inTunnel, advanceTime, randomizeTime, getClock, setScale, setDegraded, getScale: () => scale, isDegraded: () => degraded, renderer, scene, camera, bikeRoot, beam, glow, setNeon, LANES, ARCH_S,
     applyMap, getMap: () => curMap, applyQuality, render, updateRoad, updateProps, follow,
     emit, burst, updateParticles, updateWeather, updateLightning,
     coins, coinsReset, spawnCoins, updateCoins,

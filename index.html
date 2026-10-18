@@ -55,31 +55,49 @@ body.menu #hud,body.menu #ctl,body.menu #top{display:none}
 #bN{border-color:var(--c);color:var(--c)}
 .cb.on{background:#fffc;color:#000;transform:skewX(-10deg) scale(.94)}
 
-/* ---------- menú estilo Forza Horizon (mosaicos simples) ---------- */
-#menu{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;text-transform:none;background:linear-gradient(180deg,rgba(0,0,0,.62) 0,rgba(0,0,0,0) 26%,rgba(0,0,0,0) 50%,rgba(0,0,0,.78) 100%)}
+/* ---------- menú estilo Forza Horizon: pestañas, perfil, tarjetas y ajustes rápidos ---------- */
+:root{--ac:#ffb400}
+#menu{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;text-transform:none;background:linear-gradient(180deg,rgba(0,0,0,.68) 0,rgba(0,0,0,0) 24%,rgba(0,0,0,0) 44%,rgba(0,0,0,.84) 100%)}
 #menu *,#settings *{font-family:inherit}
-.top{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 22px}
-.brand{font-size:min(3.2vh,2.5vw);letter-spacing:.24em;font-weight:600}
-.brand b{display:block;font-size:min(8vh,6vw);letter-spacing:.01em;font-weight:800;font-style:italic;line-height:1;text-transform:uppercase}
-.stats{text-align:right;font-size:min(3.8vh,2.9vw);font-weight:700}
-.stats span{display:block;opacity:.85;font-size:.78em;font-weight:600}
-#goals{position:absolute;left:22px;top:31%;width:min(44vw,340px);display:flex;flex-direction:column;gap:7px}
-.goalh{font-size:min(2.8vh,2.1vw);letter-spacing:.22em;opacity:.8;font-weight:700}
-.goal{background:rgba(10,12,16,.58);backdrop-filter:blur(8px);border-left:4px solid #fff;padding:6px 10px;font-size:min(3.1vh,2.3vw);font-weight:600}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;gap:10px}
+.brand{font-size:min(2.7vh,2vw);letter-spacing:.24em;font-weight:600;line-height:1.1}
+.brand b{display:block;font-size:min(5.8vh,4.4vw);letter-spacing:.01em;font-weight:800;font-style:italic;text-transform:uppercase}
+.tabs{display:flex;gap:4px}
+.tab{pointer-events:auto;border:0;background:transparent;color:#fff9;font-size:min(3.3vh,2.5vw);font-weight:700;letter-spacing:.14em;padding:6px 12px;border-bottom:3px solid transparent}
+.tab.on{color:#fff;border-bottom-color:var(--ac)}
+.tab.off{opacity:.4;pointer-events:none}
+.prof{display:flex;align-items:center;gap:10px;background:rgba(10,12,16,.58);backdrop-filter:blur(8px);padding:6px 12px;font-weight:700;font-size:min(3.4vh,2.6vw)}
+.lv{width:min(7vh,5.4vw);height:min(7vh,5.4vw);border:3px solid var(--ac);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800}
+.xp{height:5px;width:min(14vw,110px);background:#fff3;margin-top:3px}.xp i{display:block;height:100%;width:0;background:var(--ac)}
+.cols{display:flex;gap:12px;padding:0 20px;align-items:stretch}
+.hero{pointer-events:auto;position:relative;overflow:hidden;flex:1.5;min-height:min(44vh,185px);border:0;color:#fff;text-align:left;padding:14px 18px;display:flex;flex-direction:column;justify-content:flex-end;background:linear-gradient(135deg,rgba(255,180,0,.94),rgba(255,92,40,.92));animation:rise .5s ease-out}
+.hero:before{content:'';position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);animation:sweep 3.2s ease-in-out infinite}
+.hero big{font-size:min(10.5vh,7.6vw);font-weight:800;font-style:italic;letter-spacing:-.02em;line-height:1}
+.hero span{font-size:min(3.4vh,2.6vw);font-weight:600}
+.hero em{position:absolute;right:16px;top:10px;font-style:normal;font-size:min(10vh,7.6vw)}
+.col2{flex:1;display:flex;flex-direction:column;gap:8px}
+.card{background:rgba(10,12,16,.6);backdrop-filter:blur(8px);padding:9px 12px;animation:rise .6s ease-out}
+.card h3{margin:0 0 5px;font-size:min(2.6vh,2vw);letter-spacing:.22em;opacity:.8;font-weight:700}
+.card .goalh{font-size:min(2.6vh,2vw);letter-spacing:.22em;opacity:.8;font-weight:700;margin-bottom:5px}
+.card .goal{background:none;backdrop-filter:none;border-left:3px solid var(--ac);margin:4px 0;padding:2px 8px;font-size:min(3vh,2.3vw);font-weight:600}
 .goal small{float:right;opacity:.85}
-.gbar{height:5px;background:#fff3;margin-top:4px}.gbar i{display:block;height:100%;background:#fff}
-#tiles{display:flex;gap:10px;justify-content:center;padding:0 16px 14px}
-.tile{pointer-events:auto;width:min(21vw,190px);height:min(31vh,120px);border:0;color:#fff;text-align:left;background:rgba(14,16,20,.6);backdrop-filter:blur(8px);padding:9px 12px;display:flex;flex-direction:column;justify-content:space-between;font-size:min(3.8vh,2.8vw);font-weight:800;letter-spacing:.1em}
-.tile i{font-style:normal;font-size:min(7.5vh,5.6vw)}
-.tile small{display:block;font-weight:500;letter-spacing:.03em;opacity:.8;font-size:.6em;margin-top:2px}
-.tile.big{width:min(28vw,255px);background:rgba(255,255,255,.22);outline:3px solid #fff}
-.tile:active{outline:3px solid #fff;background:rgba(255,255,255,.3)}
-.tile.off{opacity:.5;pointer-events:none}
+.gbar{height:4px;background:#fff3;margin-top:3px}.gbar i{display:block;height:100%;background:var(--ac)}
+.sbar{display:flex;align-items:center;gap:6px;font-size:min(2.6vh,2vw);font-weight:600;margin:3px 0}
+.sbar span{width:3.4em;opacity:.85}.sbar div{flex:1;height:5px;background:#fff3}.sbar i{display:block;height:100%;width:50%;background:#fff}
+.rec{font-size:min(2.8vh,2.1vw);opacity:.85;margin-top:3px}
+.mini{pointer-events:auto;border:0;color:#fff;text-align:left;background:rgba(10,12,16,.6);backdrop-filter:blur(8px);padding:9px 12px;font-size:min(3.5vh,2.7vw);font-weight:700;letter-spacing:.06em}
+.mini small{display:block;font-weight:500;opacity:.8;font-size:.7em}
+@keyframes sweep{0%{left:-40%}60%,100%{left:130%}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.chips{display:flex;gap:8px;padding:0 20px 12px}
+.chip{pointer-events:auto;flex:1;display:flex;flex-direction:column;border:0;color:#fff;text-align:left;background:rgba(10,12,16,.64);backdrop-filter:blur(8px);padding:7px 10px;font-size:min(2.6vh,1.95vw);letter-spacing:.14em;font-weight:700;border-bottom:3px solid #fff3}
+.chip b{font-size:min(3.5vh,2.6vw);letter-spacing:.02em;margin-top:2px;font-weight:800}
+.chip:active{background:rgba(255,255,255,.28);border-bottom-color:var(--ac)}
 #settings{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);text-transform:none}
-.panel{width:min(88vw,540px);max-height:94vh;overflow:auto;background:rgba(16,18,22,.9);backdrop-filter:blur(10px);padding:14px 18px}
+.panel{width:min(88vw,540px);max-height:94vh;overflow:auto;background:rgba(16,18,22,.92);backdrop-filter:blur(10px);padding:14px 18px}
 .panel h2{margin:0 0 6px;font-size:min(4vh,3vw);letter-spacing:.24em;font-weight:700}
 .row{pointer-events:auto;display:flex;justify-content:space-between;align-items:center;width:100%;color:#fff;background:transparent;border:0;border-bottom:1px solid #fff2;padding:7px 4px;font-size:min(4vh,3vw);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-.row b{font-weight:800;color:#fff;opacity:.9}
+.row b{font-weight:800;opacity:.9}
 .row:active{background:#ffffff22}
 #mHelp{font-family:'Courier New',monospace;font-size:min(2.6vh,1.9vw);opacity:.65;margin:6px 0 2px;word-break:break-word}
 .mb{pointer-events:auto;font-family:inherit;border:2px solid #fff9;background:rgba(14,16,20,.65);color:#fff;padding:9px 16px;font-size:min(4vh,3vw);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
@@ -150,27 +168,38 @@ body.fpv #visor{display:block}
 </div>
 
 <div id="menu">
-  <div class="top">
+  <div class="bar">
     <div class="brand">MOTO PIRUETA<b>BRICEÑO</b></div>
-    <div class="stats">🪙 <span id="mBank" style="display:inline;opacity:1;font-size:1em">0</span>
-      <span>RÉCORD <b id="mRec">0</b></span><span id="mBike">NINJA H2R</span><span id="mMapName" style="display:none"></span></div>
+    <div class="tabs"><button class="tab on" id="tHome">INICIO</button><button class="tab" id="tGarage">GARAJE</button><button class="tab" id="tSet">AJUSTES</button><button class="tab off">MAPA ABIERTO · PRONTO</button></div>
+    <div class="prof"><div class="lv" id="mLevel">1</div><div><div>🪙 <span id="mBank">0</span></div><div class="xp"><i id="mXp"></i></div></div></div>
   </div>
-  <div id="goals"></div>
-  <div id="tiles">
-    <button id="mPlay" class="tile big"><i>🏍️</i><span id="mPlayT">JUGAR</span></button>
-    <button id="mGarage" class="tile"><i>🔧</i><span>GARAJE<small>mejoras y estilo</small></span></button>
-    <button id="mSettings" class="tile"><i>⚙️</i><span>AJUSTES<small>mapa · cámara · gráficos</small></span></button>
-    <button id="mNew" class="tile" style="display:none"><i>↺</i><span>NUEVA PARTIDA</span></button>
-    <button id="mSoon" class="tile off"><i>🗺️</i><span>MAPA ABIERTO<small>próximamente</small></span></button>
+  <div class="cols">
+    <button id="mPlay" class="hero"><em>🏍️</em><big id="mPlayT">JUGAR</big><span id="mSub">-</span></button>
+    <div class="col2"><div class="card" id="goals"></div></div>
+    <div class="col2">
+      <div class="card"><h3>MI MOTO · <span id="mBike">NINJA H2R</span></h3>
+        <div class="sbar"><span>VEL</span><div><i id="sV"></i></div></div>
+        <div class="sbar"><span>ACE</span><div><i id="sA"></i></div></div>
+        <div class="sbar"><span>AGA</span><div><i id="sG"></i></div></div>
+        <div class="sbar"><span>FRE</span><div><i id="sF"></i></div></div>
+        <div class="rec">RÉCORD <b id="mRec">0</b></div><span id="mMapName" style="display:none"></span>
+      </div>
+      <button id="mGarage" class="mini">🔧 GARAJE<small>mejoras y estilo</small></button>
+      <button id="mNew" class="mini" style="display:none">↺ NUEVA PARTIDA</button>
+    </div>
+  </div>
+  <div class="chips">
+    <button id="mMap" class="chip">MAPA<b>-</b></button>
+    <button id="mCam" class="chip">CÁMARA<b>-</b></button>
+    <button id="mQ" class="chip">GRÁFICOS<b>-</b></button>
+    <button id="mS" class="chip">SONIDO<b>-</b></button>
+    <button id="mM" class="chip">MÚSICA<b>-</b></button>
+    <div class="chip">HORA<b id="mClock">12:00</b></div>
   </div>
 </div>
 <div id="settings"><div class="panel">
   <h2>AJUSTES</h2>
-  <button id="mMap" class="row">MAPA<b>-</b></button>
-  <button id="mCam" class="row">CÁMARA<b>-</b></button>
-  <button id="mQ" class="row">GRÁFICOS<b>-</b></button>
-  <button id="mS" class="row">SONIDO<b>-</b></button>
-  <button id="mM" class="row">MÚSICA<b>-</b></button>
+  <button id="mAuto" class="row">AUTO-OPTIMIZAR (evita el lag)<b>-</b></button>
   <button id="mTest" class="row">PROBAR AUDIO<b>-</b></button>
   <div id="mHelp">audio</div>
   <button id="mSetBack" class="mb big" style="width:100%;margin-top:8px">LISTO</button>

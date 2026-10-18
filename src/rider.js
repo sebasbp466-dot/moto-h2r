@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { box, ell, merge, tube, leatherTex, helmetTex, backTex } from './geo.js';
+import { box, ell, merge, tube, leatherTex, helmetTex, backTex, PHYS } from './geo.js';
 import { PAL, VISORS, NAMES } from './data.js';
 
 const S = (color, metal, rough, extra = {}) => new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rough, ...extra });
@@ -14,7 +14,7 @@ export function buildRider(look, P) {
   const pads = S(look.suitStyle === 2 ? st : 0x1c1c20, 0.25, 0.45);
   const stripe = S(st, 0.2, 0.4, { emissive: st, emissiveIntensity: 0.12 });
   const hair = S(PAL.hair[look.hair], 0.1, 0.65);
-  const helm = new THREE.MeshPhysicalMaterial({ map: helmetTex(PAL.helmet[look.helmet], st, look.helmStyle), metalness: 0.35, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.3 });
+  const helm = PHYS({ map: helmetTex(PAL.helmet[look.helmet], st, look.helmStyle), metalness: 0.35, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.3 });
   const vz = VISORS[look.visor] || VISORS[0];
   const visor = S(vz.c, vz.metal, vz.rough, { side: THREE.DoubleSide });
   const g = new THREE.Group(), t = new THREE.Group();

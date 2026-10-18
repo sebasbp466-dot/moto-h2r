@@ -10,3 +10,8 @@ export function roadPos(s, l, o) {
   const d = cdx(s), n = Math.sqrt(d * d + 1);
   o.x = cx(s) + l / n; o.z = -s + l * d / n; return o;
 }
+
+// Cruces con semáforo: uno cada ~1,7 km (posición variable)
+const hx = g => Math.abs(Math.sin(g * 12.9898) * 43758.5453) % 1;
+export const ixAt = k => k * 1700 + 700 + hx(k * 5.3) * 500;
+export function ixDist(s) { const k = Math.floor((s - 700) / 1700); return Math.min(Math.abs(s - ixAt(k - 1)), Math.abs(s - ixAt(k)), Math.abs(s - ixAt(k + 1))); }

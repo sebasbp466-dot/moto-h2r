@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { box, ball, limb, caps, ell, merge, loft, tube, liveryTex, carbonTex, tireTex, decalTex } from './geo.js';
+import { box, ball, limb, caps, ell, merge, loft, tube, liveryTex, carbonTex, tireTex, decalTex, PHYS } from './geo.js';
 import { PAL } from './data.js';
 import { buildRider } from './rider.js';
 
 const S = (color, metalness, roughness, extra = {}) => new THREE.MeshStandardMaterial({ color, metalness, roughness, side: THREE.DoubleSide, ...extra });
 const hdr = (r, g, b) => { const m = new THREE.MeshBasicMaterial({ toneMapped: false }); m.color.setRGB(r, g, b); return m; };
-const PHm = (o) => new THREE.MeshPhysicalMaterial({ clearcoat: 1, clearcoatRoughness: 0.04, side: THREE.DoubleSide, ...o });
+const PHm = (o) => PHYS({ clearcoat: 1, clearcoatRoughness: 0.04, side: THREE.DoubleSide, ...o });
 
 let UPS_CUR = [0, 0, 0, 0];
 

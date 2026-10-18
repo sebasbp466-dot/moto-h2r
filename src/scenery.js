@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as G from './geo.js';
-import { roadPos, cdx } from './road.js';
+import { roadPos, cdx, ixDist } from './road.js';
 
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -9,7 +9,8 @@ export const hash = g => Math.abs(Math.sin(g * 12.9898) * 43758.5453) % 1;
 const LAT = [8.8, 13, 18, 25, 35, 50, 70, 95, 130, 170], TS = 8, TSEG = 64, Y0 = -0.08;
 
 export function createScenery(scene, camera, gt) {
-  let map = null;
+  let map = null, dens = 1, skylineNight = 0;
+  const blocked = s => ixDist(s) < 16;
   const tmp = { x: 0, z: 0 };
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color(), Y = new THREE.Vector3(0, 1, 0);
   const setM = (mesh, k, x, y, z, yaw, sx, sy, sz) => { _p.set(x, y, z); _q.setFromAxisAngle(Y, yaw); _s.set(sx, sy, sz); _m.compose(_p, _q, _s); mesh.setMatrixAt(k, _m); };
@@ -20,7 +21,7 @@ export function createScenery(scene, camera, gt) {
     let h = 0;
     if (A > 0) {
       const w = sm(16, 52, a) * (1 - sm(115, 172, a));
-      h = A * w * (0.5 + 0.25 * Math.sin(s * 0.013 + l * 0.021) + 0.15 * Math.sin(s * 0.031 - l * 0.017 + 2) + 0.1 * Math.sin(s * 0.007 + l * 0.05 + 4)) * 1.4;
+      h = A * w * (0.5 + 0.25 * Math.sin(s * 0.013 + l * 0.021) + 0.15 * Math.sin(s * 0.031 - l * 0.017 + 2) + 0.1 * Math.sin(s * 0.007 + l * 0.05 + 4)) * 1.4 * sm(40, 110, ixDist(s));
     }
     if (map.shore && l < 0) h -= 3.4 * sm(24, 42, a);
     if (map.lava) h -= 1.4 * Math.exp(-Math.pow((a - 16.5) / 3, 2));
@@ -109,7 +110,7 @@ export function createScenery(scene, camera, gt) {
   const tuftMat = new THREE.MeshLambertMaterial({ map: G.tuftTex(), alphaTest: 0.45, side: THREE.DoubleSide });
   const tufts = inst(tuftGeo, tuftMat, 420);
   const tuftPool = makePool([tufts], 420, 1.5, 40, (k, g) => {
-    if (!map || !map.grass) { hideI(tufts, k); return; }
+    if (!map || !map.grass || hash(g * 3.7) > dens || blocked(g * 1.5)) { hideI(tufts, k); return; }
     const h1 = hash(g), h2 = hash(g + 5), l = ((g & 1) ? 1 : -1) * (9.6 + h1 * h1 * 16), s = g * 1.5 + h2, sc = 0.7 + h2;
     roadPos(s, l, tmp); setM(tufts, k, tmp.x, terrainY(s, l), tmp.z, h1 * 6.28, sc, sc * (0.7 + h1 * 0.7), sc);
   });
@@ -117,7 +118,7 @@ export function createScenery(scene, camera, gt) {
   const bushMat = new THREE.MeshLambertMaterial({ color: 0x3c6a2c });
   const bushes = inst(bushGeo, bushMat, 80);
   const bushPool = makePool([bushes], 80, 10, 30, (k, g) => {
-    if (!map || !map.grass) { hideI(bushes, k); return; }
+    if (!map || !map.grass || hash(g * 2.9) > dens || blocked(g * 10)) { hideI(bushes, k); return; }
     const h1 = hash(g * 1.7), h2 = hash(g + 11), l = ((g & 1) ? -1 : 1) * (10.5 + h1 * 22), s = g * 10 + h2 * 8, sc = 0.8 + h2 * 1.2;
     roadPos(s, l, tmp); setM(bushes, k, tmp.x, terrainY(s, l) - 0.1, tmp.z, h1 * 6.28, sc * 1.3, sc * 0.8, sc * 1.2);
   });
@@ -131,7 +132,7 @@ export function createScenery(scene, camera, gt) {
   const WCOL = [0xffffff, 0xf4e6c8, 0xe9d3a8, 0xe7b8a0, 0xcfd8e0, 0xf0d9d0];
   const housePool = makePool([walls, roofs], 64, 20, 30, (k, g) => {
     const h1 = hash(g * 2.3), h2 = hash(g + 3), h3 = hash(g + 7);
-    if (!map || h1 > (map.village || 0)) { hideI(walls, k); hideI(roofs, k); return; }
+    if (!map || h1 > (map.village || 0) * Math.min(1, dens + 0.25) || blocked(g * 20)) { hideI(walls, k); hideI(roofs, k); return; }
     const l = ((g & 1) ? 1 : -1) * (28 + h2 * 85), s = g * 20 + h3 * 10, yaw = -Math.atan(cdx(s)) + (h3 - 0.5) * 0.6;
     const w = 6 + h2 * 5, d = 7 + h3 * 6, hh = 3.4 + h1 * 3, rh = 2.2 + h2 * 1.5;
     roadPos(s, l, tmp); const y = terrainY(s, l);
@@ -145,6 +146,7 @@ export function createScenery(scene, camera, gt) {
   const palmT = inst(palmTrunkGeo, new THREE.MeshLambertMaterial({ color: 0x8a6a46 }), 70), palmL = inst(palmLeafGeo, new THREE.MeshLambertMaterial({ color: 0x2f7a2a, side: THREE.DoubleSide }), 70);
   const palmPool = makePool([palmT, palmL], 70, 14, 40, (k, g) => {
     const h1 = hash(g), l = ((g & 1) ? 1 : -1) * (11 + h1 * 16), s = g * 14, sc = 0.9 + h1 * 0.6;
+    if (blocked(s)) { hideI(palmT, k); hideI(palmL, k); return; }
     roadPos(s, l, tmp); const y = terrainY(s, l); setM(palmT, k, tmp.x, y, tmp.z, h1 * 6.28, sc, sc, sc); setM(palmL, k, tmp.x, y, tmp.z, h1 * 6.28, sc, sc, sc);
   });
   const spikeGeo = new THREE.ConeGeometry(0.9, 5, 5); spikeGeo.translate(0, 2.5, 0);
@@ -251,7 +253,7 @@ export function createScenery(scene, camera, gt) {
     tuftMat.color.setHex(m.grassCol || 0xffffff); bushMat.color.setHex(m.bushCol || 0x3c6a2c);
     houseMat.emissiveIntensity = m.stars ? 1.3 : 0; roofMat.color.setHex(m.roof || 0xb5532f);
     skyline.visible = !!m.skyline;
-    skyline.children.forEach(p => { p.material = skyMats[m.stars ? 1 : 0]; });
+    skylineNight = m.stars ? 1 : 0; skyline.children.forEach(p => { p.material = skyMats[skylineNight]; });
     skyMats[0].color.setHex(m.skylineTint || 0xffffff); skyMats[1].color.setHex(0xffffff);
     pools.forEach(p => p.reset());
     lastTB = -1e9;
@@ -262,5 +264,7 @@ export function createScenery(scene, camera, gt) {
     skyline.position.set(camera.position.x, 0, camera.position.z);
     if (map && map.lava) lavaMat.color.setRGB(3.2 + Math.sin(t * 2) * 0.5, 0.9 + Math.sin(t * 3.1) * 0.2, 0.15);
   }
-  return { apply, update, terrainY, sets, setGarage, get garage() { return garage; }, setGarageLights(on) { glights.forEach(l => { l.visible = on; }); } };
+  function setNight(n) { houseMat.emissiveIntensity = n * 1.3; const nn = n > 0.5 ? 1 : 0; if (nn !== skylineNight) { skylineNight = nn; skyline.children.forEach(p => { p.material = skyMats[nn]; }); } }
+  function setDensity(d) { dens = Math.min(1, d); pools.forEach(p => p.reset()); }
+  return { apply, update, terrainY, sets, setGarage, setNight, setDensity, get garage() { return garage; }, setGarageLights(on) { glights.forEach(l => { l.visible = on; }); } };
 }

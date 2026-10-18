@@ -321,3 +321,14 @@ export const garageWallTex = () => tex(256, 256, (x, w, h) => {
   x.fillStyle = '#ff7a00'; x.fillRect(0, h * 0.5, w, 10);
   for (let i = -h; i < w; i += 28) { x.fillStyle = '#ffd400'; x.beginPath(); x.moveTo(i, h); x.lineTo(i + 14, h); x.lineTo(i + 14 + 22, h - 22); x.lineTo(i + 22, h - 22); x.fill(); }
 }, true);
+
+// materiales: "phys" = barniz (clearcoat) solo en niveles altos para no gastar GPU en los bajos
+export const cfg = { phys: true };
+export const PHYS = o => { if (cfg.phys) return new THREE.MeshPhysicalMaterial(o); const { clearcoat, clearcoatRoughness, ...r } = o; return new THREE.MeshStandardMaterial(r); };
+export const crossRoadTex = () => tex(512, 64, (x, w, h) => {
+  x.fillStyle = '#2d2d32'; x.fillRect(0, 0, w, h);
+  for (let i = 0; i < 4000; i++) { const g = 40 + Math.random() * 40 | 0; x.fillStyle = `rgba(${g},${g},${g + 4},.35)`; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+  x.fillStyle = '#e8e8e8'; x.fillRect(0, 3, w, 3); x.fillRect(0, h - 6, w, 3);
+  x.fillStyle = '#ffd400'; for (let i = 0; i < w; i += 40) x.fillRect(i, h / 2 - 1.5, 22, 3);
+});
+export const zebraTex = () => tex(128, 32, (x, w, h) => { x.fillStyle = 'rgba(255,255,255,.88)'; for (let i = 0; i < 8; i++) x.fillRect(i * 16 + 3, 0, 9, h); });
